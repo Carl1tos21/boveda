@@ -1,0 +1,15 @@
+# ---- Artefactos de compilación (se regeneran con tools/build.py) ----
+dist/
+
+# ---- Restos de Python ----
+tools/__pycache__/
+*.py[cod]
+
+# ---- Archivos temporales de las pruebas ----
+.filetest.html
+.smoke-report.json
+
+# ---- Sistema operativo ----
+.DS_Store
+Thumbs.db
+desktop.ini

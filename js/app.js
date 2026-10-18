@@ -83,7 +83,21 @@ const ACTIONS = {
   scancancel: () => scanCancel(),
   scanapply: () => scanApply(),
   scanrot: () => scanRotate(),
-  scansave: () => scanSave()
+  scansave: () => scanSave(),
+
+  /* Quinquenios y Adelantos */
+  qximport: () => QxActions.qximport(),
+  qximportfile: () => QxActions.qximportfile(),
+  qxmapconfirm: () => QxActions.qxmapconfirm(),
+  qxmapback: () => QxActions.qxmapback(),
+  qxviewcat: el => QxActions.qxviewcat(el),
+  qxback: () => QxActions.qxback(),
+  qxopen: el => QxActions.qxopen(el),
+  qxrm: el => QxActions.qxrm(el),
+  qxprint: el => QxActions.qxprint(el),
+  qxprintcat: el => QxActions.qxprintcat(el),
+  qxprintall: () => QxActions.qxprintall(),
+  qxexport: () => QxActions.qxexport()
 };
 
 /* --------------------- Delegación de eventos --------------------------- */

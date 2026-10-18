@@ -22,7 +22,7 @@
  *
  * Es mutable a propósito: las pruebas automáticas lo sustituyen.
  */
-let driveClientId = '';
+let driveClientId = '1040432933420-r2hjmvtg28jb7akm26svsrgfkqlvouhu.apps.googleusercontent.com';
 
 /** Clave de localStorage donde se guarda el ID pegado desde Ajustes. */
 const DRIVE_ID_KEY = 'boveda-drive-client-id';

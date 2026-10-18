@@ -142,9 +142,13 @@ Gestor de tareas/
 │   ├── share.js            # Compartir por WhatsApp / Gmail / correo / menú del sistema
 │   ├── gdrive-config.js    # ⚙️ AQUÍ pegas tu ID de cliente de Google
 │   ├── gdrive.js           # Login con Google, API de Drive y motor de sincronización
-│   └── app.js              # Acciones, delegación de eventos, PWA y arranque
+│   ├── app.js              # Acciones, delegación de eventos, PWA y arranque
+│   └── excel-quinquenios.js # Quin/Adel: base cifrada, hojas del Excel, ficha y PDF
 ├── vendor/
-│   └── jspdf.umd.min.js    # jsPDF 2.5.1 local (la app funciona sin conexión)
+│   ├── jspdf.umd.min.js    # jsPDF 2.5.1 local (la app funciona sin conexión)
+│   └── xlsx.full.min.js    # SheetJS 0.20.3 local (leer y escribir Excel sin CDN)
+├── data/
+│   └── base-quinquenios.json # Base incluida (338 registros de las hojas Hoja 1 y Hoja 3)
 ├── test/
 │   └── runner.js           # Prueba E2E (se inyecta solo en modo /__test)
 ├── tools/
@@ -436,6 +440,12 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   con 4 esquinas arrastrables (rectificación por homografía con interpolación
   bilineal), rotación y exportación a PDF con jsPDF.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
+- **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
+  **3 hojas** (MACRO · Hoja 1 · Hoja 3) como pestañas. La Hoja 1 y la Hoja 3 son
+  una **hoja de cálculo editable** dentro de la app: se busca, se filtra, se
+  editan celdas (con guardado automático cifrado), se **añaden** y **eliminan
+  trabajadores** y se exporta de vuelta a un `.xlsx` real. La pestaña MACRO es el
+  buscador con la ficha completa (3 quinquenios y 3 gestiones de 4 adelantos).
 - **Ajustes**: tema claro/oscuro/automático, autobloqueo, cambio de contraseña
   maestra (re‑cifra toda la bóveda), exportar/importar respaldo cifrado,
   protección de datos y borrado total.
@@ -451,7 +461,7 @@ python3 tools/filetest.py           # código fuente abierto como file://
 python3 tools/filetest.py dist      # dist/ abierto como file://
 ```
 
-Todas ejecutan la **app real en Firefox headless** (171 comprobaciones) y devuelven
+Todas ejecutan la **app real en Firefox headless** (188 comprobaciones) y devuelven
 código de salida 0 solo si todo pasa. Comprueban, entre otras cosas:
 
 - que **los bytes guardados en IndexedDB no son un JPEG en claro** y que el nombre

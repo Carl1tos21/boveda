@@ -19,6 +19,7 @@ const ASSETS = [
   './manifest.json',
   './css/styles.css',
   './vendor/jspdf.umd.min.js',
+  './vendor/xlsx.full.min.js',
   './js/config.js',
   './js/utils.js',
   './js/crypto.js',

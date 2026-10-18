@@ -21,9 +21,28 @@ let qxCatView = null; // 'adelantos' | 'quinquenios'
 let qxBuscar = '';
 let qxMap = null;     // mapeo manual pendiente { headers, rows }
 let qxSaveTimer = null;
+let qxSheet = 'macro';   // hoja activa: 'macro' | 'hoja1' | 'hoja3'
+let qxPage = 0;          // página actual de la hoja de cálculo
+let qxPageSize = 50;     // filas por página
+let qxFilter = '';       // filtro de la hoja de cálculo
 
 const QX_QUIN_LABELS = ['1er Quinquenio', '2do Quinquenio', '3er Quinquenio'];
 const QX_ADEL_LABELS = ['Primer Adelanto', 'Segundo Adelanto', 'Tercer Adelanto', 'Cuarto Adelanto'];
+
+/**
+ * Campos extra de la hoja «Hoja3» del Excel (datos de RRHH).
+ * Se guardan en el mismo registro del empleado para poder editarlos como
+ * una hoja de cálculo y exportarlos de vuelta al Excel.
+ */
+const QX_HOJA3_KEYS = [
+  'direccion', 'fechaNacimiento', 'codUbicacion', 'codPuesto', 'nombrePuesto',
+  'categoria', 'familiaPuesto', 'departamento', 'sindicato', 'jefe',
+  'numPersona', 'codPuesto2', 'nombrePuesto2', 'categoriaAsignacion', 'sueldoBruto'
+];
+
+/* Estados de la «hoja de cálculo» (pestañas MACRO · Hoja 1 · Hoja 3). */
+const QX_QUIN_OPTS = ['CUMPLE', 'NO CUMPLE'];
+const QX_VISADO_OPTS = ['Sí', 'No'];
 
 /* --------------------------- Utilidades --------------------------------- */
 
@@ -37,9 +56,9 @@ function qxSlug(nombre) {
   return qxNorm(nombre).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || ('emp-' + Date.now().toString(36));
 }
 
-/** Empleado vacío con la estructura completa del Excel MACRO. */
+/** Empleado vacío con la estructura completa del Excel MACRO + Hoja3. */
 function qxEmptyEmpleado(nombre) {
-  return {
+  const e = {
     id: qxSlug(nombre),
     nombre: String(nombre || '').trim(),
     fechaIngreso: '',
@@ -47,6 +66,8 @@ function qxEmptyEmpleado(nombre) {
     quinquenios: [0, 1, 2].map(() => ({ estado: '', periodo: '', visado: '' })),
     adelantos: [0, 1, 2].map(() => [0, 1, 2, 3].map(() => ({ detalle: '', periodo: '', anios: '', visado: '' })))
   };
+  QX_HOJA3_KEYS.forEach(k => { e[k] = ''; });
+  return e;
 }
 
 /** Rellena estructuras heredadas de archivos antiguos por si faltan ramas. */
@@ -56,6 +77,7 @@ function qxFixEmpleado(e) {
   out.id = out.id || qxSlug(out.nombre);
   out.quinquenios = [0, 1, 2].map(i => Object.assign({ estado: '', periodo: '', visado: '' }, (e && e.quinquenios && e.quinquenios[i]) || {}));
   out.adelantos = [0, 1, 2].map(i => [0, 1, 2, 3].map(j => Object.assign({ detalle: '', periodo: '', anios: '', visado: '' }, (e && e.adelantos && e.adelantos[i] && e.adelantos[i][j]) || {})));
+  QX_HOJA3_KEYS.forEach(k => { if (out[k] == null) out[k] = ''; });
   return out;
 }
 
@@ -179,6 +201,72 @@ function qxFindHeaderRow(ws, probe) {
 }
 
 /**
+ * Columnas de la hoja «Hoja3» (datos de RRHH). `h` es el encabezado tal cual
+ * aparece en el Excel, `qx` la clave del empleado y `nth` la aparición cuando
+ * el encabezado se repite (p. ej. «Name» aparece dos veces).
+ */
+const QX_HOJA3_SHEET_COLS = [
+  { h: 'Name', qx: 'nombre', w: 220, cls: 'qxname' },
+  { h: 'Fecha Antigüedad', qx: 'fecha', type: 'date', w: 150 },
+  { h: 'Address Line 1', qx: 'direccion', w: 280 },
+  { h: 'Person Date of Birth', qx: 'fechaNacimiento', type: 'date', w: 160 },
+  { h: 'Location Code', qx: 'codUbicacion', w: 120 },
+  { h: 'Job Name', qx: 'cargo', w: 240 },
+  { h: 'Position Code', qx: 'codPuesto', w: 150 },
+  { h: 'Position Name', qx: 'nombrePuesto', w: 240 },
+  { h: 'Worker Category', qx: 'categoria', w: 150 },
+  { h: 'Job Family', qx: 'familiaPuesto', w: 170 },
+  { h: 'Department Name', qx: 'departamento', w: 240 },
+  { h: 'Union Name', qx: 'sindicato', w: 240 },
+  { h: 'Name', qx: 'jefe', nth: 2, w: 240 },
+  { h: 'Person Number', qx: 'numPersona', w: 130 },
+  { h: 'Position Code', qx: 'codPuesto2', nth: 2, w: 150 },
+  { h: 'Position Name', qx: 'nombrePuesto2', nth: 2, w: 240 },
+  { h: 'Assignment Category', qx: 'categoriaAsignacion', w: 170 },
+  { h: 'Sueldo Bruto', qx: 'sueldoBruto', w: 130 }
+];
+
+/** Índice de la n-ésima aparición de un encabezado (o -1). */
+function qxHeaderIndex(hdr, h, nth) {
+  let seen = 0;
+  for (let i = 0; i < hdr.length; i++) {
+    if (hdr[i] === h) { seen++; if (seen === (nth || 1)) return i; }
+  }
+  return -1;
+}
+
+/** Lee la hoja tipo «Hoja3» y devuelve un mapa { nombreNormalizado: campos }. */
+function qxReadHoja3Map(wb, skipSheet) {
+  const out = {};
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    if (!ws || ws === skipSheet) continue;
+    const found = qxFindHeaderRow(ws, c => c === 'name' || c === 'job name');
+    if (found.idx < 0) continue;
+    const hdr = (found.rows[found.idx] || []).map(qxNorm);
+    if (hdr.indexOf('job name') < 0) continue;
+    const cols = QX_HOJA3_SHEET_COLS.map(c => ({ c: c, i: qxHeaderIndex(hdr, qxNorm(c.h), c.nth) }));
+    const iName = qxHeaderIndex(hdr, 'name', 1);
+    for (let i = found.idx + 1; i < found.rows.length; i++) {
+      const r = found.rows[i] || [];
+      const nm = String(r[iName] == null ? '' : r[iName]).trim();
+      if (!nm) continue;
+      const rec = {};
+      cols.forEach(m => {
+        if (m.i < 0) return;
+        const raw = r[m.i];
+        const key = m.c.qx === 'fecha' ? 'fechaIngreso' : m.c.qx;
+        rec[key] = m.c.type === 'date' ? qxToISO(raw) : String(raw == null ? '' : raw).trim();
+      });
+      rec.nombre = nm;
+      out[qxNorm(nm)] = rec;
+    }
+    break;
+  }
+  return out;
+}
+
+/**
  * Intenta importar el libro con la estructura exacta del Excel MACRO:
  * hoja con «NOMBRE COMPLETO» (25 columnas) y hoja con «Name»/«Job Name».
  * Devuelve la lista de empleados o null si el archivo no tiene esa forma.
@@ -193,25 +281,10 @@ function qxTryMacroImport(wb) {
   }
   if (!dataSheet) return null;
 
-  /* Mapa de cargos desde la hoja tipo «Hoja3» (Name | ... | Job Name). */
+  /* Mapa completo de datos RRHH desde la hoja tipo «Hoja3» (Name | ... | Job Name). */
+  const hoja3 = qxReadHoja3Map(wb, dataSheet);
   const cargos = {};
-  for (const name of wb.SheetNames) {
-    const ws = wb.Sheets[name];
-    if (!ws || ws === dataSheet) continue;
-    const found = qxFindHeaderRow(ws, c => c === 'name' || c === 'job name');
-    if (found.idx < 0) continue;
-    const hdr = (found.rows[found.idx] || []).map(qxNorm);
-    const iName = hdr.indexOf('name');
-    const iJob = hdr.indexOf('job name');
-    if (iName < 0 || iJob < 0) continue;
-    for (let i = found.idx + 1; i < found.rows.length; i++) {
-      const r = found.rows[i] || [];
-      const nm = String(r[iName] || '').trim();
-      const job = String(r[iJob] || '').trim();
-      if (nm && job) cargos[qxNorm(nm)] = job;
-    }
-    break;
-  }
+  Object.keys(hoja3).forEach(k => { if (hoja3[k].cargo) cargos[k] = hoja3[k].cargo; });
 
   const out = [];
   for (let i = headerIdx + 1; i < dataRows.length; i++) {
@@ -221,6 +294,12 @@ function qxTryMacroImport(wb) {
     const e = qxEmptyEmpleado(nombre);
     e.fechaIngreso = qxToISO(r[1]);
     e.cargo = cargos[qxNorm(nombre)] || String(r[2] || '').trim();
+    const h3 = hoja3[qxNorm(nombre)];
+    if (h3) {
+      if (!e.cargo) e.cargo = h3.cargo || '';
+      if (!e.fechaIngreso) e.fechaIngreso = h3.fechaIngreso || '';
+      QX_HOJA3_KEYS.forEach(k => { e[k] = h3[k] || ''; });
+    }
     /* Columnas fijas del MACRO (ver análisis de las 25 columnas de Hoja1). */
     const quinCols = [[4, 5, 6], [11, 12, 13], [18, 19, 20]];
     quinCols.forEach((cols, k) => {
@@ -237,6 +316,20 @@ function qxTryMacroImport(wb) {
     });
     out.push(e);
   }
+
+  /* Empleados que solo aparecen en la Hoja3 (sin fila en la Hoja1). */
+  const vistos = new Set(out.map(e => qxNorm(e.nombre)));
+  Object.keys(hoja3).forEach(nm => {
+    if (vistos.has(nm)) return;
+    const rec = hoja3[nm];
+    const e = qxEmptyEmpleado(rec.nombre || '');
+    if (!e.nombre) return;
+    e.fechaIngreso = rec.fechaIngreso || '';
+    e.cargo = rec.cargo || '';
+    QX_HOJA3_KEYS.forEach(k => { e[k] = rec[k] || ''; });
+    out.push(e);
+  });
+
   return out.length ? out : null;
 }
 
@@ -252,6 +345,7 @@ function qxMergeEmpleados(list) {
     /* Actualiza solo los campos con contenido (no borra ediciones previas). */
     if (e.fechaIngreso) cur.fechaIngreso = e.fechaIngreso;
     if (e.cargo) cur.cargo = e.cargo;
+    QX_HOJA3_KEYS.forEach(k => { if (e[k]) cur[k] = e[k]; });
     e.quinquenios.forEach((q, i) => {
       if (q.estado) cur.quinquenios[i].estado = q.estado;
       if (q.periodo) cur.quinquenios[i].periodo = q.periodo;
@@ -314,11 +408,17 @@ function qxStats() {
   return { emps, q, noq, conAdel };
 }
 
-/** Vista principal «Quin/Adel» (clon de la hoja MACRO buscador). */
+/** Vista principal «Quin/Adel»: pestañas MACRO · Hoja 1 · Hoja 3. */
 async function renderQx() {
   await qxLoad();
   qxCatView = null;
   qxView = { mode: 'home', id: null };
+  if (qxSheet === 'hoja1' || qxSheet === 'hoja3') return qxRenderSheet(qxSheet);
+  return qxRenderMacro();
+}
+
+/** Pestaña «MACRO»: buscador + tarjetas + importar (clon de la hoja MACRO). */
+async function qxRenderMacro() {
   const v = $('#view');
   const st = qxStats();
   const conBase = st.emps.length > 0;
@@ -339,30 +439,38 @@ async function renderQx() {
     <div class="pn">
       <h2 style="font-size:15px;margin:0 0 8px">Buscar empleado</h2>
       <div class="mu" style="font-size:13px;margin-bottom:8px">Seleccione o ingrese el Nombre de la Persona:</div>
-      <input type="text" id="qxsearch" placeholder="Nombre del empleado…" value="${esc(qxBuscar)}" autocomplete="off" oninput="QxActions.qxsearch()">
+      <input type="text" id="qxsearch" placeholder="Nombre del empleado…" value="${esc(qxBuscar)}" autocomplete="off">
       <div id="qxresults" style="margin-top:10px">${qxResultsHtml()}</div>
     </div>` : `
     <div class="pn">
       <h2 style="font-size:15px;margin:0 0 8px">Cargar base inicial</h2>
-      <div class="mu" style="font-size:13px;margin-bottom:10px">La app incluye la base del archivo MACRO_QUINQUENIOS.xlsx (337 empleados). Tócala para precargarla cifrada en tu bóveda (solo en este dispositivo, bajo tu contraseña).</div>
+      <div class="mu" style="font-size:13px;margin-bottom:10px">La app incluye la base del archivo MACRO_QUINQUENIOS.xlsx (338 trabajadores, hojas Hoja 1 y Hoja 3). Tócala para precargarla cifrada en tu bóveda (solo en este dispositivo, bajo tu contraseña).</div>
       <button class="btn p" data-a="qxseed" style="width:100%">Cargar base inicial</button>
     </div>`;
 
   v.innerHTML = `
     <div class="vhead"><h1>Quinquenios y Adelantos</h1></div>
+    ${qxSheetTabs()}
     <div class="mu" style="margin-bottom:14px">${st.emps.length} empleado${st.emps.length === 1 ? '' : 's'} en la base · clon de la hoja MACRO${qxData && qxData.gen ? ' · guardado ' + esc(qxData.gen) : ''}</div>
     ${buscador}
     ${tarjetas}
     <div class="pn">
       <h2 style="font-size:15px;margin:0 0 8px">Importar desde Excel</h2>
       <div class="mu" style="font-size:13px">Archivo .xlsx/.xls. Si tiene la estructura del MACRO (hoja con «NOMBRE COMPLETO») se importa automáticamente; si no, te pide mapear las columnas.</div>
-      <input type="file" id="qxfile" accept=".xlsx,.xls" style="margin:8px 0;width:100%" onchange="QxActions.qximportfile()">
+      <input type="file" id="qxfile" accept=".xlsx,.xls" style="margin:8px 0;width:100%">
       <button class="btn" data-a="qximport" style="width:100%">Seleccionar archivo Excel</button>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" data-a="qxprintall">${ic('pr')}Imprimir listado</button>
+      ${conBase ? '<button class="btn" data-a="qxexportxlsx">' + ic('dl') + 'Exportar Excel (.xlsx)</button>' : ''}
       ${conBase ? '<button class="btn" data-a="qxexport">' + ic('dl') + 'Exportar base (JSON)</button>' : ''}
     </div>`;
+
+  /* Manejadores por listener (la CSP prohíbe los atributos on*= inline). */
+  const sb = document.getElementById('qxsearch');
+  if (sb) sb.oninput = () => qxSearchUpdate();
+  const fq = document.getElementById('qxfile');
+  if (fq) fq.onchange = () => QX_ACTIONS.qximportfile();
 }
 
 /** HTML de los resultados del buscador (tabla «RESULTADOS DE BÚSQUEDA»). */
@@ -424,6 +532,242 @@ async function renderQxList(cat) {
     ${list.length ? '<div style="border:1px solid var(--bd);border-radius:12px;overflow:hidden">' + filas + '</div>' : '<div class="empty">' + ic('search') + '<br>Sin registros en esta categoría.</div>'}`;
 }
 
+/* ------------------ Hoja de cálculo (MACRO · Hoja 1 · Hoja 3) ------------ */
+
+/** Barra de pestañas con las 3 hojas del Excel. */
+function qxSheetTabs() {
+  const tabs = [['macro', 'MACRO'], ['hoja1', 'Hoja 1'], ['hoja3', 'Hoja 3']];
+  return '<div class="qxtabs">' + tabs.map(t =>
+    '<button class="qxtab' + (qxSheet === t[0] ? ' on' : '') + '" data-a="qxsheet" data-s="' + t[0] + '">' + t[1] + '</button>'
+  ).join('') + '</div>';
+}
+
+/** Columnas de la hoja «Hoja 1» (25 columnas del Excel MACRO). */
+function qxHoja1Cols() {
+  const cols = [
+    { h: 'NOMBRE COMPLETO', qx: 'nombre', w: 230, cls: 'qxname' },
+    { h: 'FECHA DE INGRESO', qx: 'fecha', type: 'date', w: 140 },
+    { h: 'CARGO', qx: 'cargo', w: 240 },
+    { h: 'ANTIGÜEDAD (AÑOS)', calc: 'ant', w: 160 }
+  ];
+  const quins = ['1ER QUINQUENIO', '2DO QUINQUENIO', '3ER QUINQUENIO'];
+  const adels = ['PRIMER ADELANTO', 'SEGUNDO ADELANTO', 'TERCER ADELANTO'];
+  for (let k = 0; k < 3; k++) {
+    cols.push({ h: quins[k], qx: 'quin-estado', i: k, type: 'select', opts: QX_QUIN_OPTS, w: 150 });
+    cols.push({ h: 'PERIODO', qx: 'quin-periodo', i: k, w: 190 });
+    cols.push({ h: 'ESTADO DEL VISADO', qx: 'quin-visado', i: k, type: 'select', opts: QX_VISADO_OPTS, w: 150 });
+    cols.push({ h: adels[k], qx: 'adel-detalle', i: k, j: 0, w: 190 });
+    cols.push({ h: 'PERIODO', qx: 'adel-periodo', i: k, j: 0, w: 190 });
+    cols.push({ h: 'AÑOS', qx: 'adel-anios', i: k, j: 0, w: 90 });
+    cols.push({ h: 'ESTADO DEL VISADO', qx: 'adel-visado', i: k, j: 0, type: 'select', opts: QX_VISADO_OPTS, w: 150 });
+  }
+  return cols;
+}
+
+/** Lee el valor de una columna para un empleado. */
+function qxColValue(e, c) {
+  const t = c.qx;
+  if (t === 'nombre') return e.nombre;
+  if (t === 'fecha') return e.fechaIngreso;
+  if (t === 'cargo') return e.cargo;
+  if (t === 'quin-estado') return e.quinquenios[c.i].estado;
+  if (t === 'quin-periodo') return e.quinquenios[c.i].periodo;
+  if (t === 'quin-visado') return e.quinquenios[c.i].visado;
+  if (t === 'adel-detalle') return e.adelantos[c.i][c.j || 0].detalle;
+  if (t === 'adel-periodo') return e.adelantos[c.i][c.j || 0].periodo;
+  if (t === 'adel-anios') return e.adelantos[c.i][c.j || 0].anios;
+  if (t === 'adel-visado') return e.adelantos[c.i][c.j || 0].visado;
+  return e[t] == null ? '' : e[t];
+}
+
+/** Celda editable (input/select) o calculada (antigüedad). */
+function qxCellHtml(e, c) {
+  if (c.calc === 'ant') return '<span data-ant>' + esc(qxAntiguedad(e.fechaIngreso) || '—') + '</span>';
+  const val = qxColValue(e, c);
+  const attrs = 'data-qx="' + esc(c.qx) + '"' +
+    (c.i != null ? ' data-i="' + c.i + '"' : '') +
+    (c.j != null ? ' data-j="' + c.j + '"' : '');
+  if (c.type === 'select') return '<select ' + attrs + '>' + qxSelOpts(c.opts, val, '—') + '</select>';
+  if (c.type === 'date') return '<input type="date" ' + attrs + ' value="' + esc(val) + '">';
+  return '<input type="text" ' + attrs + ' value="' + esc(val) + '">';
+}
+
+/** Empleados filtrados por el buscador de la hoja (ordenados por nombre). */
+function qxSheetList() {
+  const t = qxNorm(qxFilter);
+  const all = (qxData && qxData.empleados) || [];
+  if (!t) return all;
+  return all.filter(e => {
+    const hay = [e.nombre, e.cargo, e.departamento, e.numPersona, e.codUbicacion].join(' ');
+    return qxNorm(hay).indexOf(t) >= 0;
+  });
+}
+
+/** HTML de la tabla + paginador de la hoja activa. */
+function qxGridAreaHtml() {
+  const cols = qxSheet === 'hoja1' ? qxHoja1Cols() : QX_HOJA3_SHEET_COLS;
+  const list = qxSheetList();
+  if (!list.length) return '<div class="empty">' + ic('search') + '<br>No hay filas que coincidan.</div>';
+  const total = list.length;
+  const size = qxPageSize > 0 ? qxPageSize : total;
+  const pages = Math.max(1, Math.ceil(total / size));
+  if (qxPage >= pages) qxPage = pages - 1;
+  if (qxPage < 0) qxPage = 0;
+  const from = qxPage * size;
+  const rows = list.slice(from, from + size);
+  const head = '<tr><th class="qxn">#</th>' +
+    cols.map(c => '<th' + (c.cls ? ' class="' + c.cls + '"' : '') + ' style="min-width:' + c.w + 'px">' + esc(c.h) + '</th>').join('') +
+    '<th class="qxa">·</th></tr>';
+  const body = rows.map((e, idx) => {
+    const tds = cols.map(c => '<td' + (c.cls ? ' class="' + c.cls + '"' : '') + '>' + qxCellHtml(e, c) + '</td>').join('');
+    return '<tr data-id="' + esc(e.id) + '">' +
+      '<td class="qxn"><button class="qxopen" data-a="qxficha" data-id="' + esc(e.id) + '" data-from="' + qxSheet + '" title="Abrir ficha">' + (from + idx + 1) + '</button></td>' +
+      tds +
+      '<td class="qxa"><button class="qxdel" data-a="qxdelrow" data-id="' + esc(e.id) + '" title="Eliminar trabajador">×</button></td>' +
+      '</tr>';
+  }).join('');
+  const pager = '<div class="qxpager">' +
+    '<button class="btn" data-a="qxpage" data-p="' + (qxPage - 1) + '"' + (qxPage <= 0 ? ' disabled' : '') + '>‹ Anterior</button>' +
+    '<span class="mu">Página ' + (qxPage + 1) + ' de ' + pages + ' · ' + total + ' fila' + (total === 1 ? '' : 's') + '</span>' +
+    '<button class="btn" data-a="qxpage" data-p="' + (qxPage + 1) + '"' + (qxPage >= pages - 1 ? ' disabled' : '') + '>Siguiente ›</button>' +
+    '<span class="sp"></span><span class="mu">Filas por página:</span>' +
+    [50, 100, 200, 0].map(n => '<button class="qxps' + (qxPageSize === n ? ' on' : '') + '" data-a="qxpagesize" data-n="' + n + '">' + (n || 'Todas') + '</button>').join('') +
+    '</div>';
+  return '<div class="qxgrid"><table class="qxs"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' + pager;
+}
+
+/** Pestaña de una hoja de cálculo (Hoja 1 / Hoja 3), totalmente editable. */
+async function qxRenderSheet(sheet) {
+  const v = $('#view');
+  const emps = (qxData && qxData.empleados) || [];
+  if (!qxData || !emps.length) {
+    v.innerHTML = '<div class="vhead"><h1>Quinquenios y Adelantos</h1></div>' + qxSheetTabs() +
+      '<div class="pn"><h2 style="font-size:15px">Cargar base inicial</h2>' +
+      '<div class="mu" style="margin-bottom:10px">Todavía no hay datos. Carga la base incluida o importa tu Excel.</div>' +
+      '<button class="btn p" data-a="qxseed" style="width:100%">Cargar base inicial</button></div>';
+    return;
+  }
+  const isH1 = sheet === 'hoja1';
+  v.innerHTML = `
+    <div class="vhead"><h1>${isH1 ? 'Hoja 1' : 'Hoja 3'} · ${emps.length} trabajadores</h1></div>
+    ${qxSheetTabs()}
+    <div class="qxtools">
+      <input type="text" id="qxfilter" placeholder="Filtrar por nombre, cargo, depto…" value="${esc(qxFilter)}" autocomplete="off">
+      <button class="btn p" data-a="qxadd">${ic('plus')}Añadir trabajador</button>
+      <button class="btn" data-a="qximport">${ic('dl')}Importar Excel</button>
+      <button class="btn" data-a="qxexportxlsx">${ic('dl')}Exportar .xlsx</button>
+      <button class="btn" data-a="qxreload" title="Vuelve a aplicar la base incluida sin borrar tus ediciones">Recargar base</button>
+    </div>
+    <div class="mu" style="margin:8px 0">Haz clic en cualquier celda para editarla; los cambios se guardan solos (cifrados). Pulsa el número de fila para abrir la ficha completa (con los 4 adelantos por gestión).</div>
+    <div id="qxgridwrap">${qxGridAreaHtml()}</div>`;
+  const fi = document.getElementById('qxfilter');
+  if (fi) fi.oninput = () => qxFilterUpdate();
+  qxBindGrid();
+}
+
+/** Escucha los cambios de las celdas de la hoja de cálculo. */
+function qxBindGrid() {
+  const wrap = document.getElementById('qxgridwrap');
+  if (!wrap || wrap.dataset.bound) return;
+  wrap.dataset.bound = '1';
+  wrap.addEventListener('change', ev => {
+    const el = ev.target.closest('[data-qx]');
+    if (!el) return;
+    const tr = el.closest('tr');
+    const id = tr && tr.dataset.id;
+    const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+    if (!e) return;
+    qxApplyEdit(e, el);
+    if (el.dataset.qx === 'fecha') {
+      const ant = tr.querySelector('[data-ant]');
+      if (ant) ant.textContent = qxAntiguedad(e.fechaIngreso) || '—';
+    }
+  });
+}
+
+/** Cambia de hoja (pestañas MACRO · Hoja 1 · Hoja 3). */
+function qxSwitchSheet(s) {
+  if (['macro', 'hoja1', 'hoja3'].indexOf(s) < 0) return;
+  qxSheet = s; qxPage = 0; qxFilter = '';
+  renderQx();
+}
+
+/** Actualiza solo la tabla al filtrar (mantiene el foco en el input). */
+function qxFilterUpdate() {
+  const inp = document.getElementById('qxfilter');
+  if (inp) qxFilter = inp.value;
+  qxPage = 0;
+  const wrap = document.getElementById('qxgridwrap');
+  if (wrap) wrap.innerHTML = qxGridAreaHtml();
+}
+
+/** Diálogo «Añadir trabajador». */
+function qxAddWorkerDialog() {
+  openModal(`<h2>Añadir trabajador</h2>
+    <div class="f"><label>Nombre completo *</label><input id="qxnew-nombre" type="text" placeholder="Nombres y apellidos"></div>
+    <div class="f"><label>Fecha de ingreso</label><input id="qxnew-fecha" type="date"></div>
+    <div class="f"><label>Cargo</label><input id="qxnew-cargo" type="text"></div>
+    <div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" data-a="qxaddconfirm">${ic('ok')}Añadir</button></div>`);
+  setTimeout(() => { const i = document.getElementById('qxnew-nombre'); if (i) i.focus(); }, 60);
+}
+
+/** Crea el trabajador y lo guarda cifrado. */
+async function qxAddWorkerConfirm() {
+  const nombre = (document.getElementById('qxnew-nombre') || {}).value || '';
+  const fecha = (document.getElementById('qxnew-fecha') || {}).value || '';
+  const cargo = (document.getElementById('qxnew-cargo') || {}).value || '';
+  if (!nombre.trim()) return toast('Escribe el nombre del trabajador');
+  await qxLoad();
+  if (!qxData) qxData = { v: 1, origen: '', gen: '', empleados: [] };
+  let id = qxSlug(nombre);
+  if (qxData.empleados.some(x => x.id === id)) id = id + '-' + Date.now().toString(36).slice(-4);
+  const e = qxEmptyEmpleado(nombre.trim());
+  e.id = id;
+  e.fechaIngreso = qxToISO(fecha) || fecha;
+  e.cargo = cargo.trim();
+  qxData.empleados.push(e);
+  qxData.empleados.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  await qxPersist();
+  closeModal();
+  renderQx();
+  toast('Trabajador añadido ✅');
+}
+
+/** Elimina un trabajador de la base. */
+async function qxDeleteWorker(id) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e) return;
+  const ok = await confirmDialog('Eliminar trabajador', 'Se eliminará «' + e.nombre + '» de la base.', 'Eliminar');
+  if (!ok) return;
+  qxData.empleados = qxData.empleados.filter(x => x.id !== id);
+  await qxPersist();
+  renderQx();
+  toast('Trabajador eliminado');
+}
+
+/** Exporta las 3 hojas a un archivo .xlsx real (con SheetJS). */
+function qxExportXlsx() {
+  if (!window.XLSX) return toast('SheetJS no está cargado');
+  const emps = (qxData && qxData.empleados) || [];
+  if (!emps.length) return toast('No hay datos para exportar');
+  const cols1 = qxHoja1Cols();
+  const aoa1 = [cols1.map(c => c.h)];
+  emps.forEach(e => aoa1.push(cols1.map(c => (c.calc === 'ant' ? qxAntiguedad(e.fechaIngreso) : qxColValue(e, c)))));
+  const aoa3 = [QX_HOJA3_SHEET_COLS.map(c => c.h)];
+  emps.forEach(e => aoa3.push(QX_HOJA3_SHEET_COLS.map(c => qxColValue(e, c))));
+  const aoaM = [['NOMBRE COMPLETO', 'FECHA DE INGRESO', 'CARGO', 'ANTIGÜEDAD (AÑOS)', '1ER QUINQUENIO', '2DO QUINQUENIO', '3ER QUINQUENIO', 'ADELANTOS']];
+  emps.forEach(e => aoaM.push([e.nombre, e.fechaIngreso, e.cargo, qxAntiguedad(e.fechaIngreso),
+    e.quinquenios[0].estado, e.quinquenios[1].estado, e.quinquenios[2].estado,
+    e.adelantos.reduce((a, b) => a + b.filter(x => x.detalle || x.periodo || x.anios).length, 0)]));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaM), 'MACRO');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa1), 'Hoja1');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa3), 'Hoja3');
+  XLSX.writeFile(wb, 'MACRO_QUINQUENIOS.xlsx');
+  toast('Excel exportado ✅');
+}
+
+
 /* --------------------------- Ficha editable ----------------------------- */
 
 /** Opciones de la validación de datos del Excel (CUMPLE/NO CUMPLE · Sí/No). */
@@ -476,7 +820,7 @@ async function renderQxFicha(id, from) {
       <h2 style="font-size:15px;margin:0 0 8px">Datos y quinquenios</h2>
       <div class="fgrid">
         <div class="f"><label>Nombre completo</label><input type="text" data-qx="nombre" value="${esc(e.nombre)}"></div>
-        <div class="f"><label>Fecha de ingreso</label><input type="date" data-qx="fecha" value="${esc(e.fechaIngreso)}" onchange="QxActions.qxfec()"></div>
+        <div class="f"><label>Fecha de ingreso</label><input type="date" data-qx="fecha" value="${esc(e.fechaIngreso)}"></div>
         <div class="f"><label>Cargo</label><input type="text" data-qx="cargo" value="${esc(e.cargo)}"></div>
         <div class="f"><label>Antigüedad</label><input type="text" id="qxant" value="${esc(qxAntiguedad(e.fechaIngreso))}" readonly style="opacity:.8"></div>
       </div>
@@ -497,9 +841,11 @@ async function renderQxFicha(id, from) {
 
   /* Los edits escriben directamente sobre el empleado en memoria. */
   v.querySelectorAll('[data-qx]').forEach(el => {
-    if (el.getAttribute('onchange')) return;
     el.addEventListener('change', () => qxApplyEdit(e, el));
   });
+  /* La fecha recalcula al instante la antigüedad mostrada. */
+  const fec = v.querySelector('[data-qx="fecha"]');
+  if (fec) fec.addEventListener('change', () => QX_ACTIONS.qxfec());
 }
 
 /** Escribe un campo de la ficha en el empleado y agenda el guardado. */
@@ -520,6 +866,7 @@ function qxApplyEdit(e, el) {
   else if (t === 'adel-periodo') e.adelantos[i][j].periodo = val;
   else if (t === 'adel-anios') e.adelantos[i][j].anios = val;
   else if (t === 'adel-visado') e.adelantos[i][j].visado = qxVisado(val);
+  else if (QX_HOJA3_KEYS.indexOf(t) >= 0) e[t] = val;   // campos de la Hoja3
   qxScheduleSave();
 }
 
@@ -732,11 +1079,23 @@ const QX_ACTIONS = {
   qxseed: () => qxSeedBase(),
   qxcat: el => renderQxList(el.dataset.cat),
   qxback: () => {
-    if (qxView.mode === 'ficha' && qxView.from) renderQxList(qxView.from);
+    if (qxView.mode === 'ficha' && qxView.from && qxView.from !== 'hoja1' && qxView.from !== 'hoja3') renderQxList(qxView.from);
     else renderQx();
   },
   qxficha: el => renderQxFicha(el.dataset.id, el.dataset.from || null),
   qxsearch: () => qxSearchUpdate(),
+
+  /* Hoja de cálculo (pestañas MACRO · Hoja 1 · Hoja 3) */
+  qxsheet: el => qxSwitchSheet(el.dataset.s),
+  qxadd: () => qxAddWorkerDialog(),
+  qxaddconfirm: () => qxAddWorkerConfirm(),
+  qxdelrow: el => qxDeleteWorker(el.dataset.id),
+  qxpage: el => { qxPage = +el.dataset.p; renderQx(); },
+  qxpagesize: el => { qxPageSize = +el.dataset.n; qxPage = 0; renderQx(); },
+  qxfilter: () => qxFilterUpdate(),
+  qxreload: () => qxSeedBase(),
+  qxexportxlsx: () => qxExportXlsx(),
+
   qxfec: () => {
     const ant = document.getElementById('qxant');
     const inp = document.querySelector('[data-qx="fecha"]');

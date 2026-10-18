@@ -56,8 +56,9 @@
 
 <!-- Motor de PDF (vendorizado para funcionar sin conexión y sin CDN) -->
 <script src="vendor/jspdf.umd.min.js"></script>
-<!-- SheetJS para leer archivos Excel (adelantos y quinquenios) -->
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<!-- SheetJS para leer y escribir archivos Excel (adelantos y quinquenios).
+     Vendorizado (como jsPDF) para funcionar sin conexión y sin CDN. -->
+<script src="vendor/xlsx.full.min.js"></script>
 
 <!-- Módulos de la aplicación (scripts clásicos, en orden de dependencia) -->
 <script src="js/config.js"></script>

@@ -165,3 +165,33 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .qxt th,.qxt td{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:middle}
 .qxt th{background:var(--bg);font-weight:600;white-space:nowrap}
 .qxt td input,.qxt td select{min-width:110px;padding:6px 8px;font-size:13px}
+
+/* Hoja de cálculo del módulo Quin/Adel (pestañas MACRO · Hoja 1 · Hoja 3) */
+.qxtabs{display:flex;gap:4px;border-bottom:2px solid var(--bd);margin:0 0 14px;overflow-x:auto}
+.qxtab{background:var(--bg);border:1px solid var(--bd);border-bottom:0;border-radius:10px 10px 0 0;padding:8px 18px;cursor:pointer;color:var(--mu);font-size:13px;font-weight:600;margin-bottom:-2px;white-space:nowrap}
+.qxtab:hover{color:var(--ac)}
+.qxtab.on{background:var(--card);color:var(--ac);border-color:var(--ac);border-bottom:2px solid var(--card)}
+.qxtools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.qxtools input[type=text]{flex:1;min-width:180px;max-width:340px}
+.qxgrid{overflow:auto;max-height:68vh;border:1px solid var(--bd);border-radius:12px;background:var(--card)}
+.qxs{border-collapse:separate;border-spacing:0;font-size:12.5px;white-space:nowrap}
+.qxs th,.qxs td{border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);padding:1px 3px;text-align:left;vertical-align:middle;background:var(--card)}
+.qxs th{position:sticky;top:0;z-index:2;background:var(--bg);padding:7px 9px;font-weight:700;font-size:12px}
+.qxs tbody tr:nth-child(even) td{background:var(--ac2)}
+.qxs .qxn{width:46px;min-width:46px;max-width:46px;text-align:center;position:sticky;left:0;z-index:1;background:var(--bg);padding:1px}
+.qxs tbody tr:nth-child(even) td.qxn{background:var(--bg)}
+.qxs thead th.qxn{z-index:3}
+.qxs .qxname{position:sticky;left:46px;z-index:1;background:var(--card)}
+.qxs tbody tr:nth-child(even) td.qxname{background:var(--ac2)}
+.qxs thead th.qxname{z-index:3;background:var(--bg)}
+.qxs td input,.qxs td select{width:100%;min-width:70px;border:0;background:transparent;padding:6px 7px;font-size:12.5px;border-radius:7px}
+.qxs td input:focus,.qxs td select:focus{background:var(--card);outline:1.5px solid var(--ac)}
+.qxs td [data-ant]{display:inline-block;padding:6px 7px;color:var(--mu)}
+.qxopen{background:none;border:0;color:var(--ac);cursor:pointer;font-size:12px;font-weight:700;padding:7px 2px;width:100%}
+.qxdel{background:none;border:0;color:var(--mu);cursor:pointer;font-size:17px;line-height:1;padding:7px 9px}
+.qxdel:hover{color:var(--dg)}
+.qxpager{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.qxpager .btn{padding:6px 12px;font-size:13px}
+.qxps{border:1px solid var(--bd);background:var(--card);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--mu)}
+.qxps.on{border-color:var(--ac);color:var(--ac);font-weight:700}
+@media(max-width:860px){.qxgrid{max-height:58vh}.qxtab{padding:7px 12px}}

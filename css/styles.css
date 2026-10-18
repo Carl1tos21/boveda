@@ -158,3 +158,10 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .prev iframe{width:100%;height:100%;border:0;border-radius:12px}
 
 @media(max-width:860px){.rail{display:none}.bot{display:flex}.status{display:none}.main{padding-bottom:84px}.top{padding:8px 12px;gap:8px}.tb-brand b{display:none}.who b{display:none}.wrap{padding:14px 12px 24px}.hide-m{display:none}.row .l{width:38%}.row2{padding-left:24px}.fld{padding:11px 12px}}
+
+/* Tablas del módulo Quin/Adel (clon de la hoja MACRO de Excel) */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 14px}
+.qxt{width:100%;border-collapse:collapse;font-size:13px}
+.qxt th,.qxt td{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:middle}
+.qxt th{background:var(--bg);font-weight:600;white-space:nowrap}
+.qxt td input,.qxt td select{min-width:110px;padding:6px 8px;font-size:13px}

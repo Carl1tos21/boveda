@@ -90,12 +90,13 @@ const ACTIONS = {
   qximportfile: () => QxActions.qximportfile(),
   qxmapconfirm: () => QxActions.qxmapconfirm(),
   qxmapback: () => QxActions.qxmapback(),
-  qxviewcat: el => QxActions.qxviewcat(el),
+  qxseed: () => QxActions.qxseed(),
+  qxcat: el => QxActions.qxcat(el),
   qxback: () => QxActions.qxback(),
-  qxopen: el => QxActions.qxopen(el),
-  qxrm: el => QxActions.qxrm(el),
+  qxficha: el => QxActions.qxficha(el),
+  qxsearch: () => QxActions.qxsearch(),
+  qxfec: () => QxActions.qxfec(),
   qxprint: el => QxActions.qxprint(el),
-  qxprintcat: el => QxActions.qxprintcat(el),
   qxprintall: () => QxActions.qxprintall(),
   qxexport: () => QxActions.qxexport()
 };

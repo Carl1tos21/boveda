@@ -26,6 +26,7 @@ function tileColor(name) {
 
 /** ¿Pasa el documento la búsqueda y el filtro activos? */
 function passesFilter(d) {
+  if (d.cat === '_qx') return false;   // registro interno de la vista Quin/Adel
   const hay = ((d.name || '') + (d.notes || '') + (d.cat || '') + (d.file || '')).toLowerCase();
   if (qs && !hay.includes(qs)) return false;
 
@@ -51,7 +52,7 @@ function sortedDocs() {
 const isFolderOpen = name => !openFolders || openFolders.has(name);
 
 function toggleFolder(name) {
-  if (!openFolders) openFolders = new Set(docs.map(d => d.cat || 'General'));
+  if (!openFolders) openFolders = new Set(docs.filter(d => d.cat !== '_qx').map(d => d.cat || 'General'));
   if (openFolders.has(name)) openFolders.delete(name);
   else openFolders.add(name);
 }
@@ -60,7 +61,7 @@ function toggleFolder(name) {
 
 function renderDocs() {
   const v = $('#view');
-  const tot = docs.reduce((a, d) => a + d.size, 0);
+  const tot = docs.filter(d => d.cat !== '_qx').reduce((a, d) => a + d.size, 0);
   const list = sortedDocs();
   const mode = prefs.viewMode || 'list';
 
@@ -76,7 +77,7 @@ function renderDocs() {
       </div>
     </div>
     ${list.length ? (mode === 'grid' ? gridHtml(list) : treeHtml(list, mode === 'rows')) : emptyHtml()}
-    <div class="mu" style="margin-top:14px">${docs.length} archivo${docs.length === 1 ? '' : 's'} · ${fmt(tot)} · cifrados${qs ? ' · buscando «' + esc(qs) + '»' : ''}</div>`;
+    <div class="mu" style="margin-top:14px">${docs.filter(d => d.cat !== '_qx').length} archivo${docs.filter(d => d.cat !== '_qx').length === 1 ? '' : 's'} · ${fmt(tot)} · cifrados${qs ? ' · buscando «' + esc(qs) + '»' : ''}</div>`;
 
   thumbnails(list);
 }
@@ -219,7 +220,7 @@ async function openDocDrawer(id, tab) {
 
 /** Formulario editable de la pestaña «Detalles». */
 function drawerInfoHtml(d) {
-  const cats = Array.from(new Set(DEFAULT_CATS.concat(docs.map(x => x.cat).filter(Boolean))));
+  const cats = Array.from(new Set(DEFAULT_CATS.concat(docs.map(x => x.cat).filter(c => c && c !== '_qx'))));
   return `
   <div class="f"><label>Nombre</label><input id="dn" value="${esc(d.name || '')}"></div>
   <div class="f"><label>Categoría (carpeta)</label><input id="dc" list="dclist" value="${esc(d.cat || 'General')}">
@@ -282,7 +283,7 @@ function sharePicker() {
   openModal(`<h2>Compartir un documento</h2>
   <div class="mu" style="margin-bottom:12px">Elige cuál quieres compartir.</div>
   <div style="max-height:52vh;overflow:auto">
-    ${docs.map(d => `<div class="row2" data-a="share" data-id="${d.id}" style="padding-left:12px;border-radius:10px">
+    ${docs.filter(d => d.cat !== '_qx').map(d => `<div class="row2" data-a="share" data-id="${d.id}" style="padding-left:12px;border-radius:10px">
       <span class="tile" style="background:${tileColor(d.cat || 'General')}">${esc(extOf(d))}</span>
       <span class="nm"><b>${esc(d.name)}</b><span>${esc(d.cat || 'General')} · ${fmt(d.size)}</span></span>
       ${ic('share')}

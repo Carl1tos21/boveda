@@ -48,7 +48,7 @@ function chrome() {
   $('#bot').innerHTML =
     `<button data-v="docs">${ic('file')}Docs</button>
      <button data-v="info">${ic('id')}Datos</button>
-     <button data-v="qx">${ic('file')}Quin/Adel</button>
+     <button data-v="qx">${ic('clock')}Quin/Adel</button>
      <button class="sc" data-a="scan">${ic('scan')}</button>
      <button data-a="new">${ic('plus')}Subir</button>
      <button data-v="set">${ic('cfg')}Ajustes</button>`;

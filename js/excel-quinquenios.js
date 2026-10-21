@@ -796,24 +796,63 @@ async function qxDeleteWorker(id) {
   toast('Trabajador eliminado');
 }
 
+/**
+ * Crea una hoja a partir de una matriz y le aplica el ANCHO de cada columna.
+ *
+ * Sin `!cols`, Excel deja todas las columnas con el ancho por defecto (~8
+ * caracteres), así que el texto se ve apretado, cortado o amontonado: eso era
+ * lo que «distorsionaba» el Excel exportado. Aquí se traduce el ancho en
+ * píxeles de cada columna (c.w) al ancho en caracteres que usa Excel (wch).
+ */
+function qxMakeSheet(aoa, cols) {
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = cols.map(c => ({ wch: Math.max(8, Math.round((c.w || 120) / 7)) }));
+  ws['!rows'] = [{ hpt: 24 }];   // cabecera un poco más alta, para que se lea
+  if (aoa.length > 1 && cols.length) {
+    ws['!autofilter'] = {
+      ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: cols.length - 1 } })
+    };
+  }
+  return ws;
+}
+
 /** Exporta las 3 hojas a un archivo .xlsx real (con SheetJS). */
 function qxExportXlsx() {
   if (!window.XLSX) return toast('SheetJS no está cargado');
   const emps = (qxData && qxData.empleados) || [];
   if (!emps.length) return toast('No hay datos para exportar');
+
+  /* Hoja 1: columnas del Excel MACRO (con anchos). */
   const cols1 = qxHoja1Cols();
   const aoa1 = [cols1.map(c => c.h)];
   emps.forEach(e => aoa1.push(cols1.map(c => (c.calc === 'ant' ? qxAntiguedad(e.fechaIngreso) : qxColValue(e, c)))));
+
+  /* Hoja 3: datos de RRHH (con anchos). */
   const aoa3 = [QX_HOJA3_SHEET_COLS.map(c => c.h)];
   emps.forEach(e => aoa3.push(QX_HOJA3_SHEET_COLS.map(c => qxColValue(e, c))));
-  const aoaM = [['NOMBRE COMPLETO', 'FECHA DE INGRESO', 'CARGO', 'ANTIGÜEDAD (AÑOS)', '1ER QUINQUENIO', '2DO QUINQUENIO', '3ER QUINQUENIO', 'ADELANTOS']];
-  emps.forEach(e => aoaM.push([e.nombre, e.fechaIngreso, e.cargo, qxAntiguedad(e.fechaIngreso),
+
+  /* MACRO: resumen por empleado (con anchos). */
+  const colsM = [
+    { h: 'NOMBRE COMPLETO', w: 230 },
+    { h: 'FECHA DE INGRESO', w: 140 },
+    { h: 'CARGO', w: 240 },
+    { h: 'ANTIGÜEDAD (AÑOS)', w: 160 },
+    { h: '1ER QUINQUENIO', w: 150 },
+    { h: '2DO QUINQUENIO', w: 150 },
+    { h: '3ER QUINQUENIO', w: 150 },
+    { h: 'ADELANTOS', w: 110 }
+  ];
+  const aoaM = [colsM.map(c => c.h)];
+  emps.forEach(e => aoaM.push([
+    e.nombre, e.fechaIngreso, e.cargo, qxAntiguedad(e.fechaIngreso),
     e.quinquenios[0].estado, e.quinquenios[1].estado, e.quinquenios[2].estado,
-    e.adelantos.reduce((a, b) => a + b.filter(x => x.detalle || x.periodo || x.anios).length, 0)]));
+    e.adelantos.reduce((a, b) => a + b.filter(x => x.detalle || x.periodo || x.anios).length, 0)
+  ]));
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaM), 'MACRO');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa1), 'Hoja1');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa3), 'Hoja3');
+  XLSX.utils.book_append_sheet(wb, qxMakeSheet(aoaM, colsM), 'MACRO');
+  XLSX.utils.book_append_sheet(wb, qxMakeSheet(aoa1, cols1), 'Hoja1');
+  XLSX.utils.book_append_sheet(wb, qxMakeSheet(aoa3, QX_HOJA3_SHEET_COLS), 'Hoja3');
   XLSX.writeFile(wb, 'MACRO_QUINQUENIOS.xlsx');
   toast('Excel exportado ✅');
 }

@@ -1,0 +1,30 @@
+# ==========================================================================
+# Bóveda · netlify.toml
+#
+# Despliegue automático en Netlify desde GitHub.
+#
+# Con este archivo, CADA push a la rama conectada (por defecto `main`)
+# reconstruye y publica la app sola: Netlify ejecuta el build y publica dist/.
+# No hay que volver a arrastrar nada a mano.
+#
+# El build (tools/build.py) copia solo lo necesario, escribe dist/_headers con
+# las cabeceras de seguridad y sella sw.js con un hash del contenido, de modo
+# que cada despliegue invalida la caché del service worker automáticamente.
+# ==========================================================================
+
+[build]
+  # Genera la carpeta de publicación (dist/) con las cabeceras y el SW sellado.
+  command = "python3 tools/build.py"
+  # Solo se publica dist/ (test/ y tools/ quedan fuera del sitio).
+  publish = "dist"
+
+[build.environment]
+  # El script de build solo usa la librería estándar de Python.
+  PYTHON_VERSION = "3.11"
+
+# --------------------------------------------------------------------------
+# Nota: las cabeceras de seguridad (CSP incluida) NO se repiten aquí a
+# propósito. El build las escribe en `dist/_headers` a partir de
+# tools/security_headers.py, que es la única fuente de verdad. Netlify lee ese
+# archivo automáticamente desde la carpeta publicada.
+# --------------------------------------------------------------------------

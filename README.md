@@ -96,6 +96,37 @@ con un hash del contenido.
 
 No hace falta cuenta para probarlo, ni tarjeta de crédito, ni servidor.
 
+### 2 bis. Despliegue automático desde GitHub (recomendado) ⭐
+
+Arrastrar la carpeta a mano funciona, pero hay que repetirlo en cada cambio. Para
+que **cada `push` a `main` actualice la web solo**, conecta el repositorio:
+
+1. Entra en **`https://app.netlify.com/start`** → *Import an existing project*
+   → **GitHub** → elige tu repositorio.
+2. Netlify lee el archivo **`netlify.toml`** que ya viene en el proyecto, así que
+   no hay que configurar nada a mano:
+   - **Build command**: `python3 tools/build.py`
+   - **Publish directory**: `dist`
+3. Pulsa **Deploy site**.
+
+A partir de ahí el flujo es simplemente:
+
+```bash
+# haces tus cambios…
+git add -A && git commit -m "mis cambios"
+git push origin main        # → Netlify reconstruye y publica solo
+```
+
+> **Sin `netlify.toml`** Netlify intentaría `npm run build` (que en este proyecto
+> no existe) y el despliegue fallaría. Ese archivo es justo lo que engancha el
+> build correcto con la carpeta correcta. Si ya desplegaste arrastrando `dist/`
+> (un *deploy manual*), vincular el repo con estos pasos lo convierte en
+> automático.
+
+**Actualizar el código NO borra los datos de los usuarios.** Los documentos viven
+cifrados en el `IndexedDB` de cada navegador; el despliegue solo reemplaza el
+«cascarón» de la app. Al abrirla de nuevo, cada usuario ve sus propios datos.
+
 ### 3. Comprobar que quedó bien
 
 ```bash
@@ -119,10 +150,11 @@ Debe responder `[PASS] 6 cabeceras de seguridad presentes y correctas`.
 ## Estructura del proyecto
 
 ```
-Gestor de tareas/
+Bóveda/
 ├── index.html              # Esqueleto HTML: bloqueo, shell de la app y entradas de archivo
 ├── manifest.json           # Manifiesto PWA (nombre, iconos, pantalla completa)
 ├── sw.js                   # Service worker: app instalable y uso sin conexión
+├── netlify.toml            # Despliegue automático en Netlify (build + publish)
 ├── css/
 │   └── styles.css          # Todos los estilos (tema claro/oscuro automático)
 ├── icons/                  # Iconos PNG generados (192, 512, maskable, apple-touch, favicon)

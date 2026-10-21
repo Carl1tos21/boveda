@@ -56,6 +56,21 @@ function tokenClient() {
   return tClient;
 }
 
+/** Traduce los errores de Google Identity Services a algo entendible. */
+const GIS_ERRORS = {
+  popup_closed_by_user: 'Cerraste la ventana de Google antes de terminar',
+  popup_failed_to_open: 'El navegador bloqueó la ventana de Google: permite las ventanas emergentes',
+  access_denied: 'No se autorizó el acceso a tu Drive',
+  origin_mismatch: 'Esta web no está autorizada en Google Cloud. Añade su origen en «Orígenes de JavaScript autorizados».',
+  idpiframe_initialization_failed: 'Google rechazó el origen de la app. Revisa los orígenes autorizados en Google Cloud.'
+};
+
+/** Mensaje legible a partir de un error de Google Identity Services. */
+function gisError(err) {
+  const t = (err && err.type) || '';
+  return GIS_ERRORS[t] || (err && err.message) || t || 'Error de Google';
+}
+
 /**
  * Pide un token de acceso.
  * @param {string} prompt '' = silencioso (si ya autorizó) | 'consent' = interactivo
@@ -80,7 +95,7 @@ function requestToken(prompt) {
         finish(reject, new Error((resp && resp.error) || 'No se autorizó el acceso'));
       }
     };
-    client.error_callback = err => finish(reject, new Error((err && err.type) || 'Error de Google'));
+    client.error_callback = err => finish(reject, new Error(gisError(err)));
 
     try { client.requestAccessToken({ prompt }); }
     catch (e) { finish(reject, e); }
@@ -473,6 +488,8 @@ function drivePanelHtml() {
   if (!driveConnected()) {
     return `<div class="pn"><h2>Sincronización con Google Drive</h2>
       <div class="mu" style="margin-bottom:12px">Guarda una copia <b>cifrada</b> de tu bóveda en tu propio Google Drive. Así ves los mismos documentos en la computadora y en el celular. Google solo verá un archivo ilegible.</div>
+      <div class="row"><div class="l">Origen de la app</div><div class="v" style="word-break:break-all">${esc(location.origin)}</div></div>
+      <div class="mu" style="margin-top:8px">Si al conectar aparece <b>«origin_mismatch»</b> o <b>«Error 400»</b>, añade exactamente ese origen en Google Cloud Console → <i>Credenciales</i> → tu cliente OAuth → <b>Orígenes de JavaScript autorizados</b>, y vuelve a intentarlo.</div>
       <div class="fx" style="justify-content:flex-start"><button class="btn p" data-a="gconnect">${ic('up')}Conectar con Google Drive</button></div>
     </div>`;
   }

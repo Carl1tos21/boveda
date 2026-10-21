@@ -48,11 +48,21 @@ function sortedDocs() {
   return l;
 }
 
+/** Nombres de todas las carpetas: las de los documentos + las creadas vacías. */
+function allFolderNames(list) {
+  const s = new Set(folders);
+  for (const d of list) {
+    const k = d.cat || 'General';
+    if (k !== '_qx') s.add(k);   // '_qx' es interna (base de Quin/Adel)
+  }
+  return Array.from(s).filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 /** ¿La carpeta está expandida? (por defecto, todas abiertas). */
 const isFolderOpen = name => !openFolders || openFolders.has(name);
 
 function toggleFolder(name) {
-  if (!openFolders) openFolders = new Set(docs.filter(d => d.cat !== '_qx').map(d => d.cat || 'General'));
+  if (!openFolders) openFolders = new Set(allFolderNames(docs));
   if (openFolders.has(name)) openFolders.delete(name);
   else openFolders.add(name);
 }
@@ -64,19 +74,23 @@ function renderDocs() {
   const tot = docs.filter(d => d.cat !== '_qx').reduce((a, d) => a + d.size, 0);
   const list = sortedDocs();
   const mode = prefs.viewMode || 'list';
+  const hayAlgo = list.length > 0 || folders.length > 0;   // las carpetas vacías también cuentan
 
   v.innerHTML = `
     <div class="vhead"><h1>Mi bóveda</h1></div>
     <div class="tools">
       <button class="sel" data-a="sortmenu">${ic('sort')}Ordenar: <b>${SORT_LABELS[prefs.sortBy] || 'Nombre'}</b></button>
       <button class="sel" data-a="filtermenu">${ic('filter')}Mostrar: <b>${FILTER_LABELS[prefs.showFilter] || 'Todos los registros'}</b></button>
+      <button class="sel" data-a="newfolder">${ic('plus')}Nueva carpeta</button>
       <div class="vtoggles">
         <button class="vt ${mode === 'list' ? 'on' : ''}" data-a="vm" data-m="list" title="Lista">${ic('list')}</button>
         <button class="vt ${mode === 'grid' ? 'on' : ''}" data-a="vm" data-m="grid" title="Cuadrícula">${ic('grid')}</button>
         <button class="vt ${mode === 'rows' ? 'on' : ''}" data-a="vm" data-m="rows" title="Compacta">${ic('rows')}</button>
       </div>
     </div>
-    ${list.length ? (mode === 'grid' ? gridHtml(list) : treeHtml(list, mode === 'rows')) : emptyHtml()}
+    ${hayAlgo
+      ? (mode === 'grid' && list.length ? gridHtml(list) : treeHtml(list, mode === 'rows'))
+      : emptyHtml()}
     <div class="mu" style="margin-top:14px">${docs.filter(d => d.cat !== '_qx').length} archivo${docs.filter(d => d.cat !== '_qx').length === 1 ? '' : 's'} · ${fmt(tot)} · cifrados${qs ? ' · buscando «' + esc(qs) + '»' : ''}</div>`;
 
   thumbnails(list);
@@ -97,18 +111,27 @@ function treeHtml(list, compact) {
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(d);
   }
-  const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b, 'es'));
+  const keys = allFolderNames(list);   // incluye las carpetas creadas y vacías
   return `<div class="tree${compact ? ' compact' : ''}">` +
-    keys.map(k => folderHtml(k, groups.get(k))).join('') + `</div>`;
+    keys.map(k => folderHtml(k, groups.get(k) || [])).join('') + `</div>`;
 }
 
 function folderHtml(name, items) {
   const open = isFolderOpen(name);
   const bytes = items.reduce((a, d) => a + d.size, 0);
+  const info = items.length
+    ? `${items.length} archivo${items.length === 1 ? '' : 's'} · ${fmt(bytes)}`
+    : 'Carpeta vacía';
+  const protegida = name === 'General';
   return `<div class="fld ${open ? 'open' : ''}" data-a="fold" data-f="${esc(name)}">
       <span class="car">${ic('chevron')}</span>
       <span class="tile" style="background:${tileColor(name)}">${ic('folder')}</span>
-      <span class="nm"><b>${esc(name)}</b><span>${items.length} archivo${items.length === 1 ? '' : 's'} · ${fmt(bytes)}</span></span>
+      <span class="nm"><b>${esc(name)}</b><span>${info}</span></span>
+      <span class="fa">
+        <button data-a="folderadd" data-f="${esc(name)}" title="Subir archivos a esta carpeta">${ic('up')}</button>
+        <button data-a="folderren" data-f="${esc(name)}" title="Renombrar carpeta">${ic('ed')}</button>
+        ${protegida ? '' : `<button class="d" data-a="folderdel" data-f="${esc(name)}" title="Eliminar carpeta">${ic('tr')}</button>`}
+      </span>
     </div>` + (open ? items.map(docRowHtml).join('') : '');
 }
 
@@ -220,7 +243,7 @@ async function openDocDrawer(id, tab) {
 
 /** Formulario editable de la pestaña «Detalles». */
 function drawerInfoHtml(d) {
-  const cats = Array.from(new Set(DEFAULT_CATS.concat(docs.map(x => x.cat).filter(c => c && c !== '_qx'))));
+  const cats = Array.from(new Set(DEFAULT_CATS.concat(folders).concat(docs.map(x => x.cat).filter(c => c && c !== '_qx'))));
   return `
   <div class="f"><label>Nombre</label><input id="dn" value="${esc(d.name || '')}"></div>
   <div class="f"><label>Categoría (carpeta)</label><input id="dc" list="dclist" value="${esc(d.cat || 'General')}">
@@ -265,6 +288,92 @@ function filterMenu() {
 function setSort(k) { prefs.sortBy = k; savePrefs(); closeModal(); render(); }
 function setFilter(k) { prefs.showFilter = k; savePrefs(); closeModal(); render(); }
 function setViewMode(m) { prefs.viewMode = m; savePrefs(); render(); }
+
+/* ------------------------- Gestión de carpetas -------------------------- */
+
+/** Diálogo para crear una carpeta nueva (puede quedar vacía). */
+function newFolderDialog() {
+  openModal(`<h2>Nueva carpeta</h2>
+  <div class="mu" style="margin-bottom:12px">Las carpetas agrupan tus documentos. Puedes crear una vacía y subir archivos dentro después con el botón ⬆.</div>
+  <div class="f"><label>Nombre de la carpeta</label><input id="nfname" placeholder="Ej: Contratos"></div>
+  <div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" id="nfok">${ic('ok')}Crear carpeta</button></div>`);
+  const inp = $('#nfname');
+  if (inp) {
+    inp.focus();
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') createFolder(); });
+  }
+  $('#nfok').onclick = () => createFolder();
+}
+
+/** Crea la carpeta con el nombre escrito en el diálogo. */
+async function createFolder() {
+  const inp = $('#nfname');
+  const name = inp ? inp.value.trim() : '';
+  if (!name) return toast('Escribe un nombre para la carpeta');
+  if (name === '_qx') return toast('Ese nombre está reservado');
+  if (allFolderNames(docs).some(f => f.toLowerCase() === name.toLowerCase())) {
+    return toast('Ya existe una carpeta con ese nombre');
+  }
+  folders.push(name);
+  folders.sort((a, b) => a.localeCompare(b, 'es'));
+  await saveFolders(folders);
+  if (openFolders) openFolders.add(name);   // que la nueva aparezca abierta
+  closeModal();
+  render();
+  toast('Carpeta «' + name + '» creada ✅');
+}
+
+/** Abre el selector de archivos para subirlos directamente a una carpeta. */
+function pickIntoFolder(name) {
+  pendingFolder = name;
+  const i = $('#fi');
+  if (i) { i.value = ''; i.click(); }
+}
+
+/** Diálogo para renombrar una carpeta (renombra también sus documentos). */
+function renameFolderDialog(name) {
+  openModal(`<h2>Renombrar carpeta</h2>
+  <div class="mu" style="margin-bottom:12px">Se cambiará el nombre en los documentos que hay dentro de «${esc(name)}».</div>
+  <div class="f"><label>Nuevo nombre</label><input id="rfname" value="${esc(name)}"></div>
+  <div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" id="rfok">${ic('ok')}Guardar</button></div>`);
+  const inp = $('#rfname');
+  if (inp) { inp.focus(); inp.select(); }
+  $('#rfok').onclick = () => renameFolder(name, inp ? inp.value.trim() : '');
+}
+
+async function renameFolder(oldName, newName) {
+  if (!newName) return toast('Escribe un nombre');
+  if (newName === oldName) return closeModal();
+  if (newName === '_qx') return toast('Ese nombre está reservado');
+  if (allFolderNames(docs).some(f => f.toLowerCase() === newName.toLowerCase())) {
+    return toast('Ya existe una carpeta con ese nombre');
+  }
+  folders = folders.map(f => (f === oldName ? newName : f));
+  await saveFolders(folders);
+  if (openFolders && openFolders.has(oldName)) { openFolders.delete(oldName); openFolders.add(newName); }
+  for (const d of docs) {
+    if ((d.cat || 'General') === oldName) { d.cat = newName; await saveDoc(d); }
+  }
+  closeModal();
+  await load();
+  toast('Carpeta renombrada ✅');
+}
+
+/** Elimina una carpeta; sus documentos se mueven a «General». */
+async function deleteFolder(name) {
+  if (name === 'General') return toast('La carpeta «General» no se puede eliminar');
+  const items = docs.filter(d => (d.cat || 'General') === name);
+  const msg = items.length
+    ? `«${name}» tiene ${items.length} documento${items.length === 1 ? '' : 's'}. Se moverán a la carpeta «General» y se eliminará la carpeta.`
+    : `¿Eliminar la carpeta «${name}»?`;
+  if (!await confirmDialog('Eliminar carpeta', msg, 'Eliminar')) return;
+  folders = folders.filter(f => f !== name);
+  await saveFolders(folders);
+  if (openFolders) openFolders.delete(name);
+  for (const d of items) { d.cat = 'General'; await saveDoc(d); }
+  await load();
+  toast('Carpeta eliminada');
+}
 
 /** Marca o desmarca un documento como favorito. */
 async function toggleFavorite(id) {

@@ -264,6 +264,14 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .qxs td input:focus,.qxs td select:focus{outline:2px solid var(--ac);outline-offset:-2px}
 .qxpager{gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 0}
 
+/* --- Acciones de carpeta (subir / renombrar / eliminar) --- */
+.fld .fa{display:flex;gap:2px;flex:none;opacity:.45;transition:opacity .12s}
+.fld:hover .fa,.fld:focus-within .fa{opacity:1}
+.fld .fa button{width:32px;height:32px;border:0;background:none;border-radius:8px;color:var(--mu);display:grid;place-items:center;cursor:pointer}
+.fld .fa button:hover{background:var(--card);color:var(--ac)}
+.fld .fa button.d:hover{color:var(--dg)}
+@media(hover:none){.fld .fa{opacity:1}}
+
 /* --- Detalles generales --- */
 #qxstatus{font-size:12.5px;font-weight:600;white-space:nowrap;transition:color .2s}
 .vhead h1{font-size:22px}

@@ -303,6 +303,8 @@ function lockNow() {
   key = null;
   docs = [];
   info = [];
+  folders = [];
+  pendingFolder = null;
   urls.forEach(URL.revokeObjectURL); urls = [];
   murls.forEach(URL.revokeObjectURL); murls = [];
   clearTimeout(idleT);

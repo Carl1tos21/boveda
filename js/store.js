@@ -57,7 +57,32 @@ async function buildBackup() {
   const out = { app: 'boveda', v: DB_VERSION, date: Date.now(), salt: m.salt, chk: m.chk, docs: [], info: [] };
   for (const r of await all('docs')) out.docs.push({ id: r.id, date: r.date, blob: b2s(r.blob), meta: b2s(r.meta) });
   for (const r of await all('info')) out.info.push({ id: r.id, ord: r.ord, c: b2s(r.c) });
+  const fr = await getRec(FOLDERS_ID);
+  if (fr && fr.c) out.folders = b2s(fr.c);   // carpetas (los respaldos antiguos no la traen)
   return JSON.stringify(out);
+}
+
+/* --- Carpetas ----------------------------------------------------------- */
+/**
+ * Las carpetas se guardan como un registro cifrado más (store «meta»).
+ * Así se incluyen en el respaldo y en la sincronización con Drive, y sirven
+ * para conservar carpetas VACÍAS (que no se podrían deducir de los documentos).
+ */
+const FOLDERS_ID = 'folders';
+
+/** Lista de carpetas (vacía si no hay ninguna o si aún no se ha desbloqueado). */
+async function loadFolders() {
+  try {
+    const r = await getRec(FOLDERS_ID);
+    if (!r || !r.c) return [];
+    const arr = JSON.parse(dec.decode(await D(key, r.c)));
+    return Array.isArray(arr) ? arr.filter(x => typeof x === 'string' && x) : [];
+  } catch (e) { return []; }
+}
+
+/** Guarda la lista de carpetas cifrada con la clave maestra. */
+async function saveFolders(list) {
+  await put('meta', { id: FOLDERS_ID, c: await E(key, enc.encode(JSON.stringify(list))) });
 }
 
 /* --- Documentos --------------------------------------------------------- */
@@ -109,6 +134,8 @@ async function load() {
   info = [];
   for (const r of await all('info')) info.push({ id: r.id, ord: r.ord, ...JSON.parse(dec.decode(await D(key, r.c))) });
   info.sort((a, b) => a.ord - b.ord);
+
+  folders = await loadFolders();
 
   loadSeq++;        // aviso de que la recarga terminó (lo usan las pruebas)
   if (typeof qxLoaded === 'boolean') qxLoaded = false;   // la base Quin/Adel se recarga tras importar respaldos

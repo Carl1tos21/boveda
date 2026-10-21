@@ -9,6 +9,8 @@ let db = null;      // conexión IndexedDB activa
 let key = null;     // CryptoKey de la sesión (null = bloqueado)
 let docs = [];      // documentos descifrados en memoria
 let info = [];      // datos personales descifrados en memoria
+let folders = [];   // carpetas creadas por el usuario (pueden estar vacías)
+let pendingFolder = null;   // carpeta destino del próximo archivo que se suba
 
 let view = 'docs';  // vista activa: docs | info | set
 let qs = '';        // texto de búsqueda

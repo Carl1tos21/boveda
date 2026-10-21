@@ -220,6 +220,12 @@ async function vaultDigest() {
     parts.push(new Uint8Array(r.c));
   }
 
+  const fr = await getRec(FOLDERS_ID);   // las carpetas también cuentan como cambio
+  if (fr && fr.c) {
+    parts.push(enc.encode('f:'));
+    parts.push(new Uint8Array(fr.c));
+  }
+
   let len = 0;
   for (const p of parts) len += p.length;
   const buf = new Uint8Array(len);

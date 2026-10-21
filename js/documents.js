@@ -13,6 +13,7 @@ function openAddMenu() {
     <button class="btn" data-a="pick" data-src="cam" style="justify-content:flex-start">${ic('cam')}Tomar foto con la cámara</button>
     <button class="btn" data-a="pick" data-src="gal" style="justify-content:flex-start">${ic('eye')}Elegir de la galería</button>
     <button class="btn" data-a="scan" style="justify-content:flex-start">${ic('scan')}Escanear varias páginas</button>
+    <button class="btn" data-a="newfolder" style="justify-content:flex-start">${ic('folder')}Crear una carpeta</button>
   </div>
   <div class="fx"><button class="btn" data-a="close">Cancelar</button></div>`);
 }
@@ -22,12 +23,15 @@ async function handleFiles(files) {
   const arr = Array.from(files);
   if (!arr.length) return;
 
+  const cat = pendingFolder || 'General';   // carpeta elegida con «subir a esta carpeta»
+  pendingFolder = null;
+
   if (arr.length > 1) {
-    // Varios archivos: se guardan con metadatos por defecto.
+    // Varios archivos: se guardan con metadatos por defecto en la carpeta elegida.
     for (const f of arr) {
       await saveDoc({
         id: uid(), date: Date.now(),
-        name: baseName(f.name), cat: 'General', notes: '',
+        name: baseName(f.name), cat, notes: '',
         file: f.name, type: f.type || 'application/octet-stream', _b: f
       });
     }
@@ -38,14 +42,14 @@ async function handleFiles(files) {
 
   const f = arr[0];
   docForm({
-    name: baseName(f.name), cat: 'General', notes: '',
+    name: baseName(f.name), cat, notes: '',
     file: f.name, type: f.type || 'application/octet-stream', _b: f
   }, true);
 }
 
 /** Formulario de metadatos (alta y edición). */
 function docForm(d, isNew) {
-  const cats = Array.from(new Set(DEFAULT_CATS.concat(docs.map(x => x.cat).filter(Boolean))));
+  const cats = Array.from(new Set(DEFAULT_CATS.concat(folders).concat(docs.map(x => x.cat).filter(c => c && c !== '_qx'))));
   const sizeTxt = d._b ? fmt(d._b.size) : (d.size ? fmt(d.size) : '');
 
   openModal(`<h2>${isNew ? 'Nuevo documento' : 'Editar documento'}</h2>

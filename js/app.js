@@ -31,6 +31,10 @@ const ACTIONS = {
 
   /* Lista tipo Keeper */
   fold: el => { toggleFolder(el.dataset.f); render(); },
+  newfolder: () => newFolderDialog(),
+  folderadd: el => pickIntoFolder(el.dataset.f),
+  folderren: el => renameFolderDialog(el.dataset.f),
+  folderdel: el => deleteFolder(el.dataset.f),
   fav: el => toggleFavorite(el.dataset.id),
   vm: el => setViewMode(el.dataset.m),
   sortmenu: () => sortMenu(),

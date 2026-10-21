@@ -224,6 +224,7 @@ async function importBackup(file) {
 
   for (const d of data.docs || []) await put('docs', { id: d.id, date: d.date, blob: s2b(d.blob), meta: s2b(d.meta) });
   for (const i of data.info || []) await put('info', { id: i.id, ord: i.ord, c: s2b(i.c) });
+  if (data.folders) await put('meta', { id: FOLDERS_ID, c: s2b(data.folders) });
 
   if (empty) {
     await put('meta', { id: 'v', salt: data.salt, chk: data.chk });
@@ -243,6 +244,8 @@ async function wipeAll() {
   key = null;
   docs = [];
   info = [];
+  folders = [];
+  pendingFolder = null;
   urls.forEach(URL.revokeObjectURL); urls = [];
   murls.forEach(URL.revokeObjectURL); murls = [];
   closeScan();

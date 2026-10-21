@@ -1,5 +1,7 @@
 # 🔐 Bóveda · Gestor de documentos y datos cifrados
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/3437b3a0-c904-478f-a7cc-af4cdbe38fdb/deploy-status)](https://app.netlify.com/projects/silly-gaufre-65e830/deploys)
+
 Aplicación web **100 % local**: tus documentos y datos se cifran con AES‑GCM 256 en
 tu propio dispositivo. No hay servidor, no hay cuentas, no hay telemetría.
 

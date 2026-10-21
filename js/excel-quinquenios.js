@@ -423,15 +423,29 @@ async function qxRenderMacro() {
   const st = qxStats();
   const conBase = st.emps.length > 0;
 
+  const totalQ = st.q[0] + st.q[1] + st.q[2];
   const tarjetas = conBase ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-      <div class="pn" data-a="qxcat" data-cat="adelantos" style="cursor:pointer">
-        <h2 style="font-size:15px;margin:0 0 6px">Adelantos</h2>
-        <div class="mu" style="font-size:13px">${st.conAdel} empleado${st.conAdel === 1 ? '' : 's'} con adelantos registrados</div>
+    <div class="qxcards">
+      <div class="qxc teal" data-a="qxcat" data-cat="quinquenios" title="Ver quinquenios">
+        <span class="ico">${ic('clock')}</span>
+        <span class="tx">
+          <span class="num">${totalQ}</span>
+          <span class="lab">quinquenios cumplidos<br>1er: <b>${st.q[0]}</b> · 2do: <b>${st.q[1]}</b> · 3er: <b>${st.q[2]}</b></span>
+        </span>
       </div>
-      <div class="pn" data-a="qxcat" data-cat="quinquenios" style="cursor:pointer">
-        <h2 style="font-size:15px;margin:0 0 6px">Quinquenios</h2>
-        <div class="mu" style="font-size:13px">1er: ${st.q[0]} cumplen · 2do: ${st.q[1]} · 3er: ${st.q[2]}</div>
+      <div class="qxc amber" data-a="qxcat" data-cat="adelantos" title="Ver adelantos">
+        <span class="ico">${ic('dl')}</span>
+        <span class="tx">
+          <span class="num">${st.conAdel}</span>
+          <span class="lab">empleados con adelantos<br>registrados</span>
+        </span>
+      </div>
+      <div class="qxc blue">
+        <span class="ico">${ic('id')}</span>
+        <span class="tx">
+          <span class="num">${st.emps.length}</span>
+          <span class="lab">empleados en la base</span>
+        </span>
       </div>
     </div>` : '';
 
@@ -511,11 +525,11 @@ async function renderQxList(cat) {
     let detalle;
     if (esQuinq) {
       detalle = e.quinquenios.map((q, i) => q.estado
-        ? `<span class="tag" style="background:${q.estado === 'CUMPLE' ? '#1b5e20' : '#b71c1c'};color:#fff">${QX_QUIN_LABELS[i].split(' ')[0]}: ${q.estado}</span>`
+        ? `<span class="qxbadge ${q.estado === 'CUMPLE' ? 'ok' : 'no'}"><span class="dot"></span>${QX_QUIN_LABELS[i].split(' ')[0]}: ${q.estado}</span>`
         : '').filter(Boolean).join(' ');
     } else {
       const n = e.adelantos.reduce((a, bloque) => a + bloque.filter(x => x.detalle || x.periodo || x.anios).length, 0);
-      detalle = `<span class="tag">${n} adelanto${n === 1 ? '' : 's'}</span>`;
+      detalle = `<span class="qxbadge ac">${n} adelanto${n === 1 ? '' : 's'}</span>`;
     }
     return `<div class="row2" data-a="qxficha" data-id="${esc(e.id)}" data-from="${esc(cat)}" style="padding-left:12px">
       <span class="tile" style="background:${esQuinq ? '#00695c' : '#e65100'}">${esQuinq ? ic('clock') : ic('dl')}</span>

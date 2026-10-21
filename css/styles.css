@@ -195,3 +195,79 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .qxps{border:1px solid var(--bd);background:var(--card);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--mu)}
 .qxps.on{border-color:var(--ac);color:var(--ac);font-weight:700}
 @media(max-width:860px){.qxgrid{max-height:58vh}.qxtab{padding:7px 12px}}
+
+/* ==========================================================================
+   Pulido visual · tarjetas, insignias, tablas y hojas de cálculo
+   (se añade al final para no alterar nada de lo anterior)
+   ========================================================================== */
+
+/* Colores de estado, compatibles con tema claro y oscuro. */
+:root{--ok:#0f8f5e;--okbg:rgba(18,160,106,.13);--okbd:rgba(18,160,106,.32);--wn:#b3521a;--wnbg:rgba(230,81,0,.12);--wnbd:rgba(230,81,0,.30)}
+:root[data-theme="dark"]{--ok:#4fd6a0;--okbg:rgba(79,214,160,.15);--okbd:rgba(79,214,160,.32);--wn:#ffab6b;--wnbg:rgba(255,171,107,.14);--wnbd:rgba(255,171,107,.30)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ok:#4fd6a0;--okbg:rgba(79,214,160,.15);--okbd:rgba(79,214,160,.32);--wn:#ffab6b;--wnbg:rgba(255,171,107,.14);--wnbd:rgba(255,171,107,.30)}}
+
+/* --- Tarjetas de resumen (vista MACRO) --- */
+.qxcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-bottom:14px}
+.qxc{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px 18px;box-shadow:var(--sh);cursor:pointer;transition:border-color .12s,transform .12s}
+.qxc:hover{border-color:var(--ac);transform:translateY(-2px)}
+.qxc:not([data-a]){cursor:default}
+.qxc:not([data-a]):hover{border-color:var(--bd);transform:none}
+.qxc .ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;color:#fff;flex:none}
+.qxc .ico svg{width:22px;height:22px}
+.qxc .tx{min-width:0}
+.qxc .num{display:block;font-size:22px;font-weight:800;line-height:1.15;letter-spacing:-.01em}
+.qxc .lab{display:block;font-size:12.5px;color:var(--mu);line-height:1.45}
+.qxc .lab b{color:var(--tx);font-weight:700}
+.qxc.blue .ico{background:linear-gradient(135deg,#6f93ff,#3b6cf6)}
+.qxc.amber .ico{background:linear-gradient(135deg,#ffc14d,#e65100)}
+.qxc.teal .ico{background:linear-gradient(135deg,#3fd8ad,#0f9d76)}
+
+/* --- Insignias de estado (CUMPLE / NO CUMPLE / contadores) --- */
+.qxbadge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700;line-height:1.7;white-space:nowrap;border:1px solid transparent;margin:1px 2px}
+.qxbadge.ok{background:var(--okbg);color:var(--ok);border-color:var(--okbd)}
+.qxbadge.no{background:var(--wnbg);color:var(--wn);border-color:var(--wnbd)}
+.qxbadge.ac{background:var(--ac2);color:var(--ac)}
+.qxbadge.dim{background:var(--bd);color:var(--mu)}
+.qxbadge .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+
+/* --- Pestañas y barra de herramientas de las hojas --- */
+.qxtab{border-radius:11px 11px 0 0;padding:9px 20px;font-weight:700;transition:color .12s,background .12s}
+.qxtab:hover{background:var(--ac2);color:var(--ac)}
+.qxtools{gap:8px;padding:10px 12px;background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh);margin-bottom:10px}
+.qxtools input[type=text]{max-width:none}
+
+/* --- Foco visible (accesibilidad con teclado) --- */
+.btn:focus-visible,.ibtn:focus-visible,.rb:focus-visible,.chip:focus-visible,.vt:focus-visible,.qxtab:focus-visible,.qxps:focus-visible,.sel:focus-visible,.qxc:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+
+/* --- Tablas de la ficha (Quin/Adel) --- */
+.qxt{border-collapse:separate;border-spacing:0;border:1px solid var(--bd);border-radius:12px;overflow:hidden;background:var(--card)}
+.qxt th,.qxt td{border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);padding:9px 11px}
+.qxt tr:last-child td{border-bottom:0}
+.qxt th:last-child,.qxt td:last-child{border-right:0}
+.qxt th{background:var(--bg);font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mu);white-space:nowrap}
+.qxt tr:hover td{background:var(--ac2)}
+.qxt td input,.qxt td select{min-width:110px;padding:7px 9px;font-size:13px}
+.qxt td input:hover,.qxt td select:hover{border-color:var(--ac)}
+
+/* --- Hoja de cálculo editable (Hoja 1 / Hoja 3) --- */
+.qxgrid{scrollbar-width:thin}
+.qxgrid::-webkit-scrollbar{width:12px;height:12px}
+.qxgrid::-webkit-scrollbar-thumb{background:var(--bd);border-radius:9px;border:3px solid var(--card)}
+.qxgrid::-webkit-scrollbar-thumb:hover{background:var(--mu)}
+.qxs thead th{background:var(--bg);border-bottom:2px solid var(--bd);font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--mu)}
+.qxs tbody tr:hover td,.qxs tbody tr:hover td.qxn,.qxs tbody tr:hover td.qxname{background:var(--ac2)}
+.qxs th.qxn,.qxs td.qxn{border-right:1px solid var(--bd);color:var(--mu);font-weight:700;font-size:11.5px}
+.qxs th.qxname,.qxs td.qxname{border-right:2px solid var(--bd)}
+.qxs th.qxa,.qxs td.qxa{border-right:0}
+.qxopen{font-weight:800}
+.qxopen:hover{text-decoration:underline}
+.qxs td input:focus,.qxs td select:focus{outline:2px solid var(--ac);outline-offset:-2px}
+.qxpager{gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 0}
+
+/* --- Detalles generales --- */
+.vhead h1{font-size:22px}
+.empty{background:var(--card)}
+.row{transition:border-color .12s}
+.row:hover{border-color:var(--ac)}
+.status .ok{color:var(--ok)}
+@media(max-width:860px){.qxcards{grid-template-columns:1fr}.qxtools{padding:8px}.qxc{padding:14px}.qxc .num{font-size:20px}}

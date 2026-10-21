@@ -265,6 +265,7 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .qxpager{gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 0}
 
 /* --- Detalles generales --- */
+#qxstatus{font-size:12.5px;font-weight:600;white-space:nowrap;transition:color .2s}
 .vhead h1{font-size:22px}
 .empty{background:var(--card)}
 .row{transition:border-color .12s}

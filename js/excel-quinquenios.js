@@ -21,6 +21,7 @@ let qxCatView = null; // 'adelantos' | 'quinquenios'
 let qxBuscar = '';
 let qxMap = null;     // mapeo manual pendiente { headers, rows }
 let qxSaveTimer = null;
+let qxDirty = false;     // hay cambios sin guardar (indicador + volcado al cerrar)
 let qxSheet = 'macro';   // hoja activa: 'macro' | 'hoja1' | 'hoja3'
 let qxPage = 0;          // página actual de la hoja de cálculo
 let qxPageSize = 50;     // filas por página
@@ -156,6 +157,7 @@ async function qxLoad() {
 /** Persiste qxData cifrado (AES-GCM) como registro de la bóveda. */
 async function qxPersist() {
   if (!qxData) return;
+  qxSetStatus('saving');
   qxData.gen = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const json = JSON.stringify(qxData);
   let d = qxGetDoc();
@@ -166,12 +168,47 @@ async function qxPersist() {
   d._b = new Blob([json], { type: 'application/json' });
   d.date = Date.now();
   await saveDoc(d, key, true);
+  qxDirty = false;
+  qxSetStatus('saved');
 }
 
 /** Guardado diferido (los edits de la ficha no bloquean la interfaz). */
 function qxScheduleSave() {
+  qxDirty = true;
+  qxSetStatus('pending');
   clearTimeout(qxSaveTimer);
-  qxSaveTimer = setTimeout(() => { qxPersist().catch(() => toast('No se pudo guardar la base')); }, 700);
+  qxSaveTimer = setTimeout(qxFlush, 700);
+}
+
+/**
+ * Vuelca AHORA los cambios pendientes, sin esperar el retardo.
+ * Se llama al ocultar o cerrar la pestaña para no perder el último edit.
+ */
+async function qxFlush() {
+  clearTimeout(qxSaveTimer);
+  qxSaveTimer = null;
+  if (!qxDirty || !qxData) return;
+  try {
+    await qxPersist();
+  } catch (e) {
+    qxSetStatus('error');
+    toast('No se pudo guardar la base');
+  }
+}
+
+/** Indicador de guardado en la cabecera (si esa vista está en pantalla). */
+function qxSetStatus(state) {
+  const el = document.getElementById('qxstatus');
+  if (!el) return;
+  const map = {
+    pending: ['Guardando…', 'var(--mu)'],
+    saving: ['Guardando…', 'var(--mu)'],
+    saved: ['Guardado ✓', 'var(--ok)'],
+    error: ['No se pudo guardar', 'var(--dg)']
+  };
+  const m = map[state] || map.saved;
+  el.textContent = m[0];
+  el.style.color = m[1];
 }
 
 /* ------------------------ Importación desde Excel ----------------------- */
@@ -463,7 +500,7 @@ async function qxRenderMacro() {
     </div>`;
 
   v.innerHTML = `
-    <div class="vhead"><h1>Quinquenios y Adelantos</h1></div>
+    <div class="vhead"><h1>Quinquenios y Adelantos</h1><span class="sp"></span><span id="qxstatus" class="mu"></span></div>
     ${qxSheetTabs()}
     <div class="mu" style="margin-bottom:14px">${st.emps.length} empleado${st.emps.length === 1 ? '' : 's'} en la base · clon de la hoja MACRO${qxData && qxData.gen ? ' · guardado ' + esc(qxData.gen) : ''}</div>
     ${buscador}
@@ -663,7 +700,7 @@ async function qxRenderSheet(sheet) {
   }
   const isH1 = sheet === 'hoja1';
   v.innerHTML = `
-    <div class="vhead"><h1>${isH1 ? 'Hoja 1' : 'Hoja 3'} · ${emps.length} trabajadores</h1></div>
+    <div class="vhead"><h1>${isH1 ? 'Hoja 1' : 'Hoja 3'} · ${emps.length} trabajadores</h1><span class="sp"></span><span id="qxstatus" class="mu"></span></div>
     ${qxSheetTabs()}
     <div class="qxtools">
       <input type="text" id="qxfilter" placeholder="Filtrar por nombre, cargo, depto…" value="${esc(qxFilter)}" autocomplete="off">
@@ -828,7 +865,7 @@ async function renderQxFicha(id, from) {
   }).join('');
 
   v.innerHTML = `
-    <div class="vhead"><h1>${esc(e.nombre)}</h1></div>
+    <div class="vhead"><h1>${esc(e.nombre)}</h1><span class="sp"></span><span id="qxstatus" class="mu"></span></div>
     <div style="margin-bottom:12px"><button class="btn" data-a="qxback">${ic('chevron')}Volver</button></div>
     <div class="pn">
       <h2 style="font-size:15px;margin:0 0 8px">Datos y quinquenios</h2>
@@ -1128,6 +1165,10 @@ const QX_ACTIONS = {
     toast('Base exportada (sin cifrar: cuídala)');
   }
 };
+
+/* No perder el último cambio: volcar al ocultar o cerrar la pestaña. */
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') qxFlush(); });
+addEventListener('pagehide', () => { qxFlush(); });
 
 window.QxActions = QX_ACTIONS;
 window.renderQx = renderQx;

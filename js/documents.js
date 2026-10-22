@@ -83,27 +83,11 @@ function docForm(d, isNew) {
   };
 }
 
-/** Abre el visor de un documento (imagen, PDF o texto). */
+/** Abre el visor de un documento (imagen, PDF, texto, hoja de cálculo, Office…). */
 async function viewDoc(id) {
   const d = docs.find(x => x.id === id);
   if (!d) return;
-  let body;
-  try {
-    const b = await getBlob(d);
-    if (/^image\//.test(d.type)) {
-      const u = URL.createObjectURL(b); murls.push(u);
-      body = `<img src="${u}" alt="">`;
-    } else if (/pdf/i.test(d.type) || /\.pdf$/i.test(d.file || '')) {
-      const u = URL.createObjectURL(b); murls.push(u);
-      body = `<iframe src="${u}" title="PDF"></iframe>`;
-    } else if (/^text\//.test(d.type) || /\.txt$/i.test(d.file || '')) {
-      body = `<div style="white-space:pre-wrap;text-align:left;padding:16px;width:100%;overflow:auto">${esc(await b.text())}</div>`;
-    } else {
-      body = `<div class="empty">${ic('file')}<br>Vista previa no disponible.<br>Usa <b>Descargar</b> para abrirlo.</div>`;
-    }
-  } catch (e) {
-    body = `<div class="empty">${ic('file')}<br>No se pudo leer el archivo.</div>`;
-  }
+  const body = await previewBodyOrFallback(d);
 
   openModal(`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
       <div style="min-width:0"><b style="display:block;word-break:break-word">${esc(d.name)}</b>
@@ -162,5 +146,224 @@ async function removeDoc(id) {
   closeDrawer();
   await load();
   toast('Documento eliminado');
+}
+
+/* ======================== Vista previa de archivos ====================== */
+
+/**
+ * ¿Qué tipo de vista previa corresponde a este documento?
+ * Se mira el MIME y, si falta, la extensión del nombre.
+ */
+function previewKind(d) {
+  const t = String(d.type || '').toLowerCase();
+  const name = String(d.file || d.name || '').toLowerCase();
+  const ext = (name.match(/\.([a-z0-9]+)$/) || [, ''])[1];
+  const inList = arr => arr.indexOf(ext) >= 0;
+
+  if (/^image\//.test(t) || inList(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico'])) return 'image';
+  if (/^video\//.test(t) || inList(['mp4', 'webm', 'ogv', 'mov', 'm4v'])) return 'video';
+  if (/^audio\//.test(t) || inList(['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac'])) return 'audio';
+  if (/pdf/.test(t) || ext === 'pdf') return 'pdf';
+  if (inList(['xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'csv', 'tsv']) || /spreadsheet|ms-excel|csv/.test(t)) return 'sheet';
+  if (inList(['docx', 'pptx', 'odt', 'odp'])) return 'office';
+  if (/^text\//.test(t) || inList(['txt', 'md', 'markdown', 'json', 'xml', 'log', 'yml', 'yaml', 'ini', 'conf', 'rtf', 'js', 'css', 'html', 'htm', 'sql', 'py'])) return 'text';
+  return 'none';
+}
+
+/** URL de objeto viva durante el modal/panel (se libera al cerrar). */
+function pvURL(blob) {
+  const u = URL.createObjectURL(blob);
+  murls.push(u);
+  return u;
+}
+
+/** Cuerpo HTML de la vista previa, o null si el formato no se puede mostrar. */
+async function previewBody(d) {
+  const kind = previewKind(d);
+  if (kind === 'none') return null;
+  const b = await getBlob(d);
+
+  if (kind === 'image') return `<img src="${pvURL(b)}" alt="">`;
+  if (kind === 'video') return `<video src="${pvURL(b)}" controls playsinline preload="metadata"></video>`;
+  if (kind === 'audio') return `<div class="pvaudio"><audio src="${pvURL(b)}" controls preload="metadata"></audio></div>`;
+  if (kind === 'pdf') return `<iframe src="${pvURL(b)}" title="PDF"></iframe>`;
+  if (kind === 'text') return `<div class="pvtext">${esc((await b.text()).slice(0, 300000))}</div>`;
+  if (kind === 'sheet') return await sheetPreviewHtml(b);
+  if (kind === 'office') return await officePreviewHtml(b, d);
+  return null;
+}
+
+/** Igual que previewBody, pero con el aviso de «no disponible» si falla. */
+async function previewBodyOrFallback(d) {
+  try {
+    const html = await previewBody(d);
+    if (html) return html;
+  } catch (e) { /* formato no soportado o archivo dañado: se avisa abajo */ }
+  return `<div class="empty">${ic('file')}<br>Vista previa no disponible para este formato.<br>Usa <b>Descargar</b> para abrirlo.</div>`;
+}
+
+/* -------------------- Hojas de cálculo (Excel / CSV) -------------------- */
+
+/** Vista previa de un libro de Excel/CSV, con una pestaña por hoja. */
+async function sheetPreviewHtml(blob) {
+  if (!window.XLSX) return null;
+  const wb = XLSX.read(new Uint8Array(await blob.arrayBuffer()), { type: 'array', cellDates: true });
+  const names = (wb.SheetNames || []).slice(0, 10);
+  if (!names.length) return null;
+
+  const tabs = names.map((n, i) =>
+    `<button class="pvt${i === 0 ? ' on' : ''}" data-a="pvsheet" data-s="${esc(n)}">${esc(n)}</button>`).join('');
+  const panes = names.map((n, i) =>
+    `<div class="pvs"${i === 0 ? '' : ' hidden'} data-pv="${esc(n)}">${sheetTableHtml(wb.Sheets[n])}</div>`).join('');
+
+  return `<div class="pvw"><div class="pvtabs">${tabs}</div>${panes}</div>`;
+}
+
+/** Tabla HTML de una hoja (limitada para no colgar el móvil). */
+function sheetTableHtml(ws, maxRows, maxCols) {
+  const lim = maxRows || 300, limC = maxCols || 40;
+  const opts = { header: 1, raw: false, defval: '' };
+  try {
+    const ref = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+    if (ref.e.r > ref.s.r + lim) {
+      opts.range = XLSX.utils.encode_range({
+        s: ref.s,
+        e: { r: ref.s.r + lim, c: Math.min(ref.e.c, ref.s.c + limC - 1) }
+      });
+    }
+  } catch (e) { /* sin rango fiable: se lee entero */ }
+
+  let rows = [];
+  try { rows = XLSX.utils.sheet_to_json(ws, opts); } catch (e) { rows = []; }
+  if (!rows.length) return '<div class="mu">Hoja vacía.</div>';
+
+  const shown = rows.slice(0, lim + 1).map(r => (r || []).slice(0, limC));
+  const head = '<tr>' + (shown[0] || []).map(c => `<th>${esc(String(c))}</th>`).join('') + '</tr>';
+  const body = shown.slice(1)
+    .map(r => '<tr>' + r.map(c => `<td>${esc(String(c))}</td>`).join('') + '</tr>').join('');
+  const more = rows.length > lim
+    ? `<div class="mu" style="margin-top:8px">Mostrando las primeras ${lim} filas.</div>` : '';
+
+  return `<div class="pvgrid"><table class="pvtbl"><thead>${head}</thead><tbody>${body}</tbody></table></div>${more}`;
+}
+
+/** Cambia de hoja dentro de la vista previa (acción data-a="pvsheet"). */
+function pvSheet(name) {
+  const root = document.querySelector('.pvw');
+  if (!root) return;
+  root.querySelectorAll('[data-a="pvsheet"]').forEach(b => b.classList.toggle('on', b.dataset.s === name));
+  root.querySelectorAll('[data-pv]').forEach(w => { w.hidden = w.dataset.pv !== name; });
+}
+
+/* --------------- Word / PowerPoint / OpenDocument (texto) -------------- */
+
+/**
+ * Vista previa de un documento de Office: se extrae el TEXTO del XML interno
+ * (un .docx/.pptx es un ZIP). No conserva el diseño, pero permite LEERLO sin
+ * descargarlo y sin depender de ningún servidor.
+ */
+async function officePreviewHtml(blob, d) {
+  const txt = await officeText(blob, d);
+  if (!txt) return null;
+  return `<div class="pvtext">${esc(txt)}</div>`;
+}
+
+/** Texto plano de un .docx / .pptx / .odt / .odp. */
+async function officeText(blob, d) {
+  if (typeof DecompressionStream === 'undefined') return null;   // navegador antiguo
+  const name = String(d.file || d.name || '').toLowerCase();
+  const ext = (name.match(/\.([a-z0-9]+)$/) || [, ''])[1];
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  const out = [];
+
+  if (ext === 'docx') {
+    const xml = await zipText(buf, 'word/document.xml');
+    if (xml) out.push(xmlToText(xml, '</w:p>'));
+
+  } else if (ext === 'pptx') {
+    for (let i = 1; i <= 300; i++) {
+      const xml = await zipText(buf, 'ppt/slides/slide' + i + '.xml');
+      if (!xml) break;
+      out.push('── Diapositiva ' + i + ' ──\n' + xmlToText(xml, '</a:p>'));
+    }
+
+  } else if (ext === 'odt' || ext === 'odp') {
+    const xml = await zipText(buf, 'content.xml');
+    if (xml) out.push(xmlToText(xml, '</text:p>'));
+  }
+
+  const res = out.join('\n\n').trim();
+  return res || null;
+}
+
+/** Lee un archivo de texto dentro de un ZIP (por su ruta interna). */
+async function zipText(buf, entryName) {
+  const data = await zipEntry(buf, entryName);
+  return data ? new TextDecoder().decode(data) : null;
+}
+
+/**
+ * Extrae un archivo de un ZIP sin librerías externas.
+ * Recorre el «directorio central» (la parte fiable del ZIP) y descomprime
+ * con DecompressionStream cuando el método es deflate (8).
+ */
+async function zipEntry(buf, wanted) {
+  const u = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  const dv = new DataView(u.buffer, u.byteOffset, u.byteLength);
+
+  /* 1. Localizar el «End Of Central Directory» (0x06054b50). */
+  let eocd = -1;
+  const desde = Math.max(0, u.length - 66000);
+  for (let i = u.length - 22; i >= desde; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+
+  const total = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const dec2 = new TextDecoder();
+
+  /* 2. Recorrer las entradas del directorio central. */
+  for (let i = 0; i < total && off + 46 <= u.length; i++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const compSize = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const commentLen = dv.getUint16(off + 32, true);
+    const localOff = dv.getUint32(off + 42, true);
+    const nm = dec2.decode(u.subarray(off + 46, off + 46 + nameLen));
+
+    if (nm === wanted) {
+      /* 3. Saltar la cabecera local para llegar a los datos. */
+      const lNameLen = dv.getUint16(localOff + 26, true);
+      const lExtraLen = dv.getUint16(localOff + 28, true);
+      const start = localOff + 30 + lNameLen + lExtraLen;
+      const data = u.subarray(start, start + compSize);
+      if (method === 0) return data;            // sin comprimir
+      if (method !== 8) return null;            // otros métodos: no soportados
+      const ds = new DecompressionStream('deflate-raw');
+      const st = new Blob([data]).stream().pipeThrough(ds);
+      return new Uint8Array(await new Response(st).arrayBuffer());
+    }
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  return null;
+}
+
+/** XML -> texto plano legible (párrafos, tabuladores y entidades). */
+function xmlToText(xml, paraEnd) {
+  const escapar = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return String(xml)
+    .replace(/<w:tab[^>]*\/>/g, '\t')
+    .replace(/<w:br[^>]*\/>/g, '\n')
+    .replace(new RegExp(escapar(paraEnd), 'g'), '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 

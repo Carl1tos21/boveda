@@ -198,19 +198,7 @@ async function openDocDrawer(id, tab) {
   if (!d) return;
   const activeTab = tab || 'preview';
 
-  let preview = `<div class="empty" style="border:0;padding:30px">${ic('file')}<br>Sin vista previa.<br>Usa <b>Descargar</b> para abrirlo.</div>`;
-  try {
-    const b = await getBlob(d);
-    if (/^image\//.test(d.type || '')) {
-      const u = URL.createObjectURL(b); murls.push(u);
-      preview = `<img src="${u}" alt="">`;
-    } else if (/pdf/i.test(d.type || '') || /\.pdf$/i.test(d.file || '')) {
-      const u = URL.createObjectURL(b); murls.push(u);
-      preview = `<iframe src="${u}" title="PDF"></iframe>`;
-    } else if (/^text\//.test(d.type || '')) {
-      preview = `<div style="white-space:pre-wrap;text-align:left;padding:14px;width:100%;overflow:auto">${esc(await b.text())}</div>`;
-    }
-  } catch (e) { }
+  const preview = await previewBodyOrFallback(d);
 
   closeDrawer();
   const wrap = document.createElement('div');

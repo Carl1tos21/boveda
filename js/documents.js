@@ -390,37 +390,88 @@ async function pptxVisualHtml(blob) {
   }
   if (!files.length) return null;
 
+  /* Paleta del tema, para resolver colores como «accent1». */
+  const theme = pptxTheme(await zipStr(zip, 'ppt/theme/theme1.xml'));
+
   const scale = Math.min(1, 780 / SW);
   const boxes = [];
   for (let i = 0; i < files.length; i++) {
-    boxes.push(await pptxSlideBox(zip, files[i], SW, SH, i + 1, scale));
+    boxes.push(await pptxSlideBox(zip, files[i], SW, SH, i + 1, scale, theme));
   }
   return `<div class="pvdeck">${boxes.join('')}</div>`;
 }
 
+/** Paleta del tema: nombre de color -> «#RRGGBB». */
+function pptxTheme(xml) {
+  const t = {};
+  if (!xml) return t;
+  const scheme = /<a:clrScheme[\s\S]*?<\/a:clrScheme>/.exec(xml);
+  if (!scheme) return t;
+  const re = /<a:(\w+)>\s*<a:(?:srgbClr val="([0-9A-Fa-f]{6})"|sysClr[^>]*lastClr="([0-9A-Fa-f]{6})")/g;
+  for (const m of scheme[0].matchAll(re)) t[m[1]] = '#' + (m[2] || m[3]);
+  return t;
+}
+
+/** Color de un fragmento XML: directo (srgbClr) o del tema (schemeClr). */
+function pptxColor(frag, theme) {
+  const s = frag || '';
+  const rgb = /<a:srgbClr val="([0-9A-Fa-f]{6})"/.exec(s);
+  if (rgb) return '#' + rgb[1];
+  const sch = /<a:schemeClr val="(\w+)"/.exec(s);
+  if (sch) {
+    const n = sch[1], th = theme || {};
+    if (th[n]) return th[n];
+    if (n === 'tx1') return th.dk1 || '#000000';
+    if (n === 'tx2') return th.dk2 || '#44546A';
+    if (n === 'bg1') return th.lt1 || '#FFFFFF';
+    if (n === 'bg2') return th.lt2 || '#E7E6E6';
+  }
+  const sys = /<a:sysClr[^>]*lastClr="([0-9A-Fa-f]{6})"/.exec(s);
+  return sys ? '#' + sys[1] : null;
+}
+
 /** Dibuja UNA diapositiva: cada forma en su posición, con su texto o imagen. */
-async function pptxSlideBox(zip, file, SW, SH, num, scale) {
+async function pptxSlideBox(zip, file, SW, SH, num, scale, theme) {
   const xml = await zipStr(zip, file);
   if (!xml) return '';
   const rels = await zipStr(zip, file.replace(/slides\/(slide\d+\.xml)$/, 'slides/_rels/$1.rels'));
   const k = v => Math.round(v * scale);
+  const th = theme || {};
   const partes = [];
 
-  /* Formas con texto (cuadros de texto, títulos, tablas simples). */
+  /* Fondo de la diapositiva (si la propia diapositiva lo define). */
+  const bgXml = (/<p:bg>[\s\S]*?<\/p:bg>/.exec(xml) || [''])[0];
+  const bg = pptxColor(bgXml, th) || '#FFFFFF';
+
+  /* Formas con texto (cuadros de texto, títulos…). */
   for (const sp of (xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || [])) {
     const off = /<a:off x="(-?\d+)" y="(-?\d+)"\/>/.exec(sp);
     if (!off) continue;
     const ext = /<a:ext cx="(\d+)" cy="(\d+)"\/>/.exec(sp);
     const body = xmlToText(sp, '</a:p>');
     if (!body) continue;
+
     const szm = /<a:rPr[^>]*sz="(\d+)"/.exec(sp);
     const size = Math.max(8, Math.round((szm ? Number(szm[1]) / 100 : 18) * scale));
     const bold = /<a:rPr[^>]*b="1"/.test(sp) ? 'font-weight:700;' : '';
-    const colm = /<a:srgbClr val="([0-9A-Fa-f]{6})"/.exec(sp);
-    const color = colm ? 'color:#' + colm[1] + ';' : '';
+    const ital = /<a:rPr[^>]*i="1"/.test(sp) ? 'font-style:italic;' : '';
+
+    /* El color del TEXTO va dentro de <a:rPr>, después de las propiedades. */
+    const iRpr = sp.indexOf('<a:rPr');
+    const color = pptxColor(iRpr >= 0 ? sp.slice(iRpr, iRpr + 600) : '', th) || '#111111';
+
+    const fam = /<a:latin typeface="([^"]+)"/.exec(sp);
+    const font = fam ? `font-family:'${fam[1].replace(/['"]/g, '')}',sans-serif;` : '';
+
+    const am = /<a:pPr[^>]*algn="(ctr|r|just)"/.exec(sp);
+    const align = am ? ({ ctr: 'center', r: 'right', just: 'justify' })[am[1]] : 'left';
+    const an = /<a:bodyPr[^>]*anchor="(ctr|b)"/.exec(sp);
+    const flex = an ? 'display:flex;flex-direction:column;justify-content:' + (an[1] === 'ctr' ? 'center' : 'flex-end') + ';' : '';
+
     const x = emu2px(off[1]), y = emu2px(off[2]);
     const w = ext ? emu2px(ext[1]) : SW - x;
-    const st = `left:${k(x)}px;top:${k(y)}px;width:${k(w)}px;font-size:${size}px;${bold}${color}`;
+    const h = ext ? emu2px(ext[2]) : 60;
+    const st = `left:${k(x)}px;top:${k(y)}px;width:${k(w)}px;height:${k(h)}px;font-size:${size}px;text-align:${align};${bold}${ital}${font}${flex}color:${color};`;
     partes.push(`<div class="pvsp" style="${st}">${esc(body).replace(/\n/g, '<br>')}</div>`);
   }
 
@@ -442,7 +493,7 @@ async function pptxSlideBox(zip, file, SW, SH, num, scale) {
 
   return `<div class="pvbox">
     <div class="pvslide-n">Diapositiva ${num}</div>
-    <div class="pvcanvas" style="width:${k(SW)}px;height:${k(SH)}px">${partes.join('')}</div>
+    <div class="pvcanvas" style="width:${k(SW)}px;height:${k(SH)}px;background:${bg}">${partes.join('')}</div>
   </div>`;
 }
 

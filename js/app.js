@@ -18,6 +18,7 @@ const ACTIONS = {
   pr: el => printDoc(el.dataset.id),
   ed: el => editDoc(el.dataset.id),
   rm: el => removeDoc(el.dataset.id),
+  pdf: el => pdfDoc(el.dataset.id),
   pvsheet: el => pvSheet(el.dataset.s),
 
   /* Compartir */

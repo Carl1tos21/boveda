@@ -95,8 +95,12 @@ async function viewDoc(id) {
       <button class="btn s" data-a="close" title="Cerrar">✕</button>
     </div>
     <div class="view">${body}</div>
-    <div class="fx">${d.notes ? `<div class="mu" style="flex:1;text-align:left;align-self:center">${esc(d.notes)}</div>` : ''}
-      <button class="btn" data-a="dl" data-id="${d.id}">${ic('dl')}Descargar</button>
+    <div class="fx">
+      <div class="mu" style="flex:1;text-align:left;align-self:center">
+        ${d.notes ? esc(d.notes) + ' · ' : ''}Descargar conserva tu archivo original (${esc(extOf(d))})
+      </div>
+      <button class="btn" data-a="dl" data-id="${d.id}">${ic('dl')}Descargar ${esc(extOf(d))}</button>
+      <button class="btn" data-a="pdf" data-id="${d.id}">${ic('file')}Guardar como PDF</button>
       <button class="btn" data-a="pr" data-id="${d.id}">${ic('pr')}Imprimir</button>
       <button class="btn p" data-a="ed" data-id="${d.id}">${ic('ed')}Editar</button>
     </div>`, true);
@@ -642,5 +646,52 @@ function xmlToText(xml, paraEnd) {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/* --------------------- Generar un PDF de la vista ---------------------- */
+
+/**
+ * Genera un PDF «de verdad» a partir de lo que se ve en la vista previa.
+ *
+ * Usa el diálogo de impresión del navegador: el PDF sale VECTORIAL (texto
+ * seleccionable, nítido a cualquier zoom) y sin librerías extra.
+ *
+ * ⚠️ NO toca el archivo original: lo que se descargue con «Descargar» sigue
+ * siendo el .docx / .xlsx / .pptx nativo, intacto.
+ */
+async function printRendered(d) {
+  const body = await previewBodyOrFallback(d);
+  const w = window.open('', '_blank');
+  if (!w) return toast('Permite las ventanas emergentes para generar el PDF');
+
+  const est = `
+    @page{size:auto;margin:12mm}
+    html,body{margin:0;background:#fff;color:#000;font:12px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    img,video{max-width:100%}
+    iframe{width:100%;height:250mm;border:0}
+    .pvtabs{display:none}
+    .pvs[hidden]{display:block!important;margin-bottom:12mm}
+    .pvslide-n{display:none}
+    .pvbox,.card,.pn{page-break-inside:avoid}
+    .pvcanvas{border:0;box-shadow:none;max-width:100%}
+    .docx-wrapper{background:#fff;padding:0}
+    .docx-wrapper>section.docx{box-shadow:none;margin:0 0 10mm;background:#fff;color:#000}
+    .pvtext{font-size:10px;white-space:pre-wrap;word-break:break-word}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #888;padding:3px 5px;font-size:9px;text-align:left}
+    .empty{display:none}
+  `;
+
+  w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>' +
+    esc(d.name || 'Documento') + '</title><style>' + est + '</style></head><body>' + body + '</body></html>');
+  w.document.close();
+
+  setTimeout(() => { try { w.focus(); w.print(); } catch (e) { } }, 900);
+}
+
+/** Acción: generar el PDF a partir de la vista previa del documento. */
+function pdfDoc(id) {
+  const d = docs.find(x => x.id === id);
+  if (d) printRendered(d);
 }
 

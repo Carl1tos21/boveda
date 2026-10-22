@@ -257,12 +257,103 @@ function pvSheet(name) {
 
 /* --------------- Word / PowerPoint / OpenDocument (texto) -------------- */
 
+/* --- Word con diseño real (docx-preview) --- */
+
+let docxLibP = null;
+
+/** Carga (una sola vez y solo cuando hace falta) JSZip + docx-preview. */
+function loadDocxLib() {
+  if (window.docx && window.docx.renderAsync) return Promise.resolve(true);
+  if (docxLibP) return docxLibP;
+  const trae = src => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => res(true);
+    s.onerror = () => rej(new Error('no se pudo cargar ' + src));
+    document.head.appendChild(s);
+  });
+  docxLibP = trae('vendor/jszip.min.js')
+    .then(() => trae('vendor/docx-preview.min.js'))
+    .then(() => !!(window.docx && window.docx.renderAsync))
+    .catch(() => false);
+  return docxLibP;
+}
+
 /**
- * Vista previa de un documento de Office: se extrae el TEXTO del XML interno
- * (un .docx/.pptx es un ZIP). No conserva el diseño, pero permite LEERLO sin
- * descargarlo y sin depender de ningún servidor.
+ * Renderiza un .docx con su diseño real (párrafos, tablas, imágenes).
+ * Devuelve el HTML o null si la librería no está disponible.
  */
+async function docxVisualHtml(blob) {
+  if (!await loadDocxLib()) return null;
+  const host = document.createElement('div');
+  await window.docx.renderAsync(blob, host, null, {
+    className: 'docx',
+    inWrapper: true,
+    breakPages: true,
+    ignoreLastRenderedPageBreak: false,
+    useBase64URL: true          // las imágenes quedan incrustadas en el HTML
+  });
+  return host.innerHTML ? `<div class="pvdocx">${host.innerHTML}</div>` : null;
+}
+
+/* --- PowerPoint: una tarjeta por diapositiva --- */
+
+/** Vista previa de PowerPoint con el texto de cada diapositiva en tarjetas. */
+async function pptxPreviewHtml(blob) {
+  const slides = await pptxSlides(blob);
+  if (!slides || !slides.length) return null;
+  const cards = slides.map((s, i) => `
+    <div class="pvslide">
+      <div class="pvslide-n">Diapositiva ${i + 1}</div>
+      ${s.title ? `<h3>${esc(s.title)}</h3>` : ''}
+      ${s.lines.length ? `<ul>${s.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+    </div>`).join('');
+  return `<div class="pvslides">${cards}</div>`;
+}
+
+/** Texto de cada diapositiva (título + viñetas) de un .pptx. */
+async function pptxSlides(blob) {
+  if (typeof DecompressionStream === 'undefined') return null;
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  const out = [];
+  for (let i = 1; i <= 300; i++) {
+    const xml = await zipText(buf, 'ppt/slides/slide' + i + '.xml');
+    if (!xml) break;
+    out.push(pptxSlideText(xml));
+  }
+  return out;
+}
+
+/** Separa el título del resto del texto dentro del XML de una diapositiva. */
+function pptxSlideText(xml) {
+  const shapes = String(xml).match(/<p:sp>[\s\S]*?<\/p:sp>/g) || [];
+  let title = '';
+  const lines = [];
+  for (const sp of shapes) {
+    const esTitulo = /<p:ph[^>]*type="(title|ctrTitle)"/.test(sp);
+    const txt = xmlToText(sp, '</a:p>');
+    if (!txt) continue;
+    const parts = txt.split('\n').map(s => s.trim()).filter(Boolean);
+    if (esTitulo && !title && parts.length) title = parts.shift();
+    lines.push(...parts);
+  }
+  return { title, lines };
+}
+
+/** Vista previa de un documento de Office: se extrae el TEXTO del XML interno
+ *  (un .docx/.pptx es un ZIP). No conserva el diseño, pero permite LEERLO sin
+ *  descargarlo y sin depender de ningún servidor. */
 async function officePreviewHtml(blob, d) {
+  const name = String(d.file || d.name || '').toLowerCase();
+  const ext = (name.match(/\.([a-z0-9]+)$/) || [, ''])[1];
+
+  if (ext === 'docx') {
+    try { const html = await docxVisualHtml(blob); if (html) return html; } catch (e) { /* al texto */ }
+  }
+  if (ext === 'pptx') {
+    try { const html = await pptxPreviewHtml(blob); if (html) return html; } catch (e) { /* al texto */ }
+  }
+
   const txt = await officeText(blob, d);
   if (!txt) return null;
   return `<div class="pvtext">${esc(txt)}</div>`;
@@ -355,8 +446,8 @@ async function zipEntry(buf, wanted) {
 function xmlToText(xml, paraEnd) {
   const escapar = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return String(xml)
-    .replace(/<w:tab[^>]*\/>/g, '\t')
-    .replace(/<w:br[^>]*\/>/g, '\n')
+    .replace(/<(?:w|a):tab[^>]*\/>/g, '\t')
+    .replace(/<(?:w|a):br[^>]*\/>/g, '\n')
     .replace(new RegExp(escapar(paraEnd), 'g'), '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>')

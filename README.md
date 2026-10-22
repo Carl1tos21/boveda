@@ -180,7 +180,9 @@ Bóveda/
 │   └── excel-quinquenios.js # Quin/Adel: base cifrada, hojas del Excel, ficha y PDF
 ├── vendor/
 │   ├── jspdf.umd.min.js    # jsPDF 2.5.1 local (la app funciona sin conexión)
-│   └── xlsx.full.min.js    # SheetJS 0.20.3 local (leer y escribir Excel sin CDN)
+│   ├── xlsx.full.min.js    # SheetJS 0.20.3 local (leer y escribir Excel sin CDN)
+│   ├── jszip.min.js        # JSZip 3.10.1 local (descomprimir .docx/.pptx)
+│   └── docx-preview.min.js # docx-preview local (ver Word con su diseño real)
 ├── data/
 │   └── base-quinquenios.json # Base incluida (338 registros de las hojas Hoja 1 y Hoja 3)
 ├── test/

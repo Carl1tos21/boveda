@@ -20,6 +20,8 @@ const ASSETS = [
   './css/styles.css',
   './vendor/jspdf.umd.min.js',
   './vendor/xlsx.full.min.js',
+  './vendor/jszip.min.js',
+  './vendor/docx-preview.min.js',
   './js/config.js',
   './js/utils.js',
   './js/crypto.js',

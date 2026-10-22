@@ -132,7 +132,11 @@ function folderHtml(name, items) {
         <button data-a="folderren" data-f="${esc(name)}" title="Renombrar carpeta">${ic('ed')}</button>
         ${protegida ? '' : `<button class="d" data-a="folderdel" data-f="${esc(name)}" title="Eliminar carpeta">${ic('tr')}</button>`}
       </span>
-    </div>` + (open ? items.map(docRowHtml).join('') : '');
+    </div>` + (open
+      ? (items.length
+        ? items.map(docRowHtml).join('')
+        : `<div class="fld-add" data-a="folderadd" data-f="${esc(name)}">${ic('up')}Subir archivos a «${esc(name)}»</div>`)
+      : '');
 }
 
 function docRowHtml(d) {
@@ -388,3 +392,56 @@ function sharePicker() {
   </div>
   <div class="fx"><button class="btn" data-a="close">Cancelar</button></div>`);
 }
+
+/* -------------------- Arrastrar y soltar archivos ---------------------- */
+
+/** Guarda una lista de archivos dentro de una carpeta (o en «General»). */
+async function addFilesToFolder(name, files) {
+  const cat = name || 'General';
+  let n = 0;
+  for (const f of files) {
+    try {
+      await saveDoc({
+        id: uid(), date: Date.now(),
+        name: baseName(f.name), cat, notes: '',
+        file: f.name, type: f.type || 'application/octet-stream', _b: f
+      });
+      n++;
+    } catch (e) { /* archivo ilegible: se ignora */ }
+  }
+  if (!n) return toast('No se pudo guardar ningún archivo');
+  if (openFolders) openFolders.add(cat);   // que la carpeta quede abierta
+  await load();
+  toast(n + ' archivo' + (n === 1 ? '' : 's') + ' guardado' + (n === 1 ? '' : 's') + ' en «' + cat + '» ✅');
+}
+
+/** Arrastrar archivos del sistema y soltarlos encima de una carpeta. */
+(function initFolderDrop() {
+  const carpetaDe = el => (el && el.closest) ? el.closest('.fld') : null;
+
+  document.addEventListener('dragover', e => {
+    if (view !== 'docs') return;
+    const f = carpetaDe(e.target);
+    if (!f) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    $$('.fld.drop').forEach(x => { if (x !== f) x.classList.remove('drop'); });
+    f.classList.add('drop');
+  });
+
+  document.addEventListener('dragleave', e => {
+    const f = carpetaDe(e.target);
+    if (f) f.classList.remove('drop');
+  });
+
+  document.addEventListener('drop', async e => {
+    if (view !== 'docs') return;
+    const f = carpetaDe(e.target);
+    if (!f) return;
+    e.preventDefault();
+    f.classList.remove('drop');
+    const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+    if (!files.length) return;
+    await addFilesToFolder(f.dataset.f, files);
+  });
+})();

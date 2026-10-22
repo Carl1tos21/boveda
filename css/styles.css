@@ -265,12 +265,27 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .qxpager{gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 0}
 
 /* --- Acciones de carpeta (subir / renombrar / eliminar) --- */
-.fld .fa{display:flex;gap:2px;flex:none;opacity:.45;transition:opacity .12s}
+.fld .fa{display:flex;gap:2px;flex:none;opacity:.6;transition:opacity .12s}
 .fld:hover .fa,.fld:focus-within .fa{opacity:1}
 .fld .fa button{width:32px;height:32px;border:0;background:none;border-radius:8px;color:var(--mu);display:grid;place-items:center;cursor:pointer}
 .fld .fa button:hover{background:var(--card);color:var(--ac)}
 .fld .fa button.d:hover{color:var(--dg)}
+.fld.drop{background:var(--ac2);box-shadow:inset 0 0 0 2px var(--ac)}
+.fld-add{display:flex;align-items:center;gap:10px;padding:12px 14px 12px 44px;color:var(--ac);font-size:13px;font-weight:600;cursor:pointer;border-bottom:1px solid var(--bd)}
+.fld-add:hover{background:var(--ac2)}
+.fld-add svg{width:18px;height:18px}
 @media(hover:none){.fld .fa{opacity:1}}
+
+/* --- Vista previa de Word (diseño real) y PowerPoint --- */
+.pvdocx{width:100%;align-self:stretch;overflow:auto;background:var(--bg);border-radius:10px}
+.pvdocx .docx-wrapper{background:transparent;padding:10px}
+.pvdocx .docx-wrapper>section.docx{box-shadow:var(--sh);margin:0 auto 14px;background:#fff;color:#000}
+.pvslides{width:100%;align-self:stretch;overflow:auto;display:grid;gap:12px;padding:4px}
+.pvslide{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+.pvslide-n{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mu);margin-bottom:6px}
+.pvslide h3{margin:0 0 8px;font-size:16px}
+.pvslide ul{margin:0;padding-left:20px}
+.pvslide li{margin:2px 0;font-size:13.5px}
 
 /* --- Vista previa de archivos (texto, hojas de cálculo, audio) --- */
 .pvtext{white-space:pre-wrap;word-break:break-word;text-align:left;padding:16px;width:100%;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6}

@@ -298,8 +298,17 @@ async function docxVisualHtml(blob) {
 
 /* --- PowerPoint: una tarjeta por diapositiva --- */
 
-/** Vista previa de PowerPoint con el texto de cada diapositiva en tarjetas. */
+/** Vista previa de PowerPoint: diseño real de la diapositiva o tarjetas. */
 async function pptxPreviewHtml(blob) {
+  try {
+    const html = await pptxVisualHtml(blob);
+    if (html) return html;
+  } catch (e) { /* cae al modo tarjetas */ }
+  return pptxCardsHtml(blob);
+}
+
+/** Modo alternativo: una tarjeta con el texto de cada diapositiva. */
+async function pptxCardsHtml(blob) {
   const slides = await pptxSlides(blob);
   if (!slides || !slides.length) return null;
   const cards = slides.map((s, i) => `
@@ -309,6 +318,132 @@ async function pptxPreviewHtml(blob) {
       ${s.lines.length ? `<ul>${s.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
     </div>`).join('');
   return `<div class="pvslides">${cards}</div>`;
+}
+
+/* --- PowerPoint: dibujo de la diapositiva con posiciones reales --- */
+
+let jszipP = null;
+
+/** Carga JSZip (ya viene en vendor) si aún no está. */
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(true);
+  if (jszipP) return jszipP;
+  jszipP = new Promise(res => {
+    const s = document.createElement('script');
+    s.src = 'vendor/jszip.min.js';
+    s.onload = () => res(!!window.JSZip);
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+  return jszipP;
+}
+
+/** EMU (unidad interna de Office) -> píxeles CSS. 914400 EMU = 1 pulgada = 96 px. */
+const emu2px = v => (Number(v) || 0) / 9525;
+
+/** Lee un archivo de texto dentro de un ZIP ya abierto. */
+async function zipStr(zip, name) {
+  const f = zip.file(name);
+  return f ? f.async('string') : null;
+}
+
+/** Imagen del ZIP -> data URL (para poder incrustarla en el HTML). */
+async function zipMedia(zip, path) {
+  const f = zip.file(path);
+  if (!f) return null;
+  const ext = (path.match(/\.([a-z0-9]+)$/i) || [, 'png'])[1].toLowerCase();
+  const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+    : ext === 'gif' ? 'image/gif'
+      : ext === 'svg' ? 'image/svg+xml'
+        : ext === 'emf' || ext === 'wmf' ? null
+          : 'image/png';
+  if (!mime) return null;                       // EMF/WMF: no soportados por el navegador
+  const b64 = await f.async('base64');
+  return 'data:' + mime + ';base64,' + b64;
+}
+
+/** Dibuja todas las diapositivas de un .pptx respetando su maquetación. */
+async function pptxVisualHtml(blob) {
+  if (!await loadJSZip()) return null;
+  const zip = await window.JSZip.loadAsync(blob);
+
+  /* Tamaño de la diapositiva (por defecto 4:3). */
+  const pres = await zipStr(zip, 'ppt/presentation.xml');
+  const sz = /<p:sldSz[^>]*cx="(\d+)"[^>]*cy="(\d+)"/.exec(pres || '');
+  const SW = emu2px(sz ? sz[1] : 9144000) || 960;
+  const SH = emu2px(sz ? sz[2] : 6858000) || 720;
+
+  /* Orden real de las diapositivas. */
+  const rels = await zipStr(zip, 'ppt/_rels/presentation.xml.rels');
+  const files = [];
+  const ids = [...(pres || '').matchAll(/<p:sldId[^>]*r:id="([^"]+)"/g)].map(m => m[1]);
+  for (const id of ids) {
+    const m = new RegExp('Id="' + id + '"[^>]*Target="([^"]+)"').exec(rels || '');
+    if (m) files.push('ppt/' + m[1].replace(/^\.\.\//, '').replace(/^\/+/, ''));
+  }
+  if (!files.length) {
+    for (let i = 1; i <= 300; i++) {
+      const f = 'ppt/slides/slide' + i + '.xml';
+      if (!zip.file(f)) break;
+      files.push(f);
+    }
+  }
+  if (!files.length) return null;
+
+  const scale = Math.min(1, 780 / SW);
+  const boxes = [];
+  for (let i = 0; i < files.length; i++) {
+    boxes.push(await pptxSlideBox(zip, files[i], SW, SH, i + 1, scale));
+  }
+  return `<div class="pvdeck">${boxes.join('')}</div>`;
+}
+
+/** Dibuja UNA diapositiva: cada forma en su posición, con su texto o imagen. */
+async function pptxSlideBox(zip, file, SW, SH, num, scale) {
+  const xml = await zipStr(zip, file);
+  if (!xml) return '';
+  const rels = await zipStr(zip, file.replace(/slides\/(slide\d+\.xml)$/, 'slides/_rels/$1.rels'));
+  const k = v => Math.round(v * scale);
+  const partes = [];
+
+  /* Formas con texto (cuadros de texto, títulos, tablas simples). */
+  for (const sp of (xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || [])) {
+    const off = /<a:off x="(-?\d+)" y="(-?\d+)"\/>/.exec(sp);
+    if (!off) continue;
+    const ext = /<a:ext cx="(\d+)" cy="(\d+)"\/>/.exec(sp);
+    const body = xmlToText(sp, '</a:p>');
+    if (!body) continue;
+    const szm = /<a:rPr[^>]*sz="(\d+)"/.exec(sp);
+    const size = Math.max(8, Math.round((szm ? Number(szm[1]) / 100 : 18) * scale));
+    const bold = /<a:rPr[^>]*b="1"/.test(sp) ? 'font-weight:700;' : '';
+    const colm = /<a:srgbClr val="([0-9A-Fa-f]{6})"/.exec(sp);
+    const color = colm ? 'color:#' + colm[1] + ';' : '';
+    const x = emu2px(off[1]), y = emu2px(off[2]);
+    const w = ext ? emu2px(ext[1]) : SW - x;
+    const st = `left:${k(x)}px;top:${k(y)}px;width:${k(w)}px;font-size:${size}px;${bold}${color}`;
+    partes.push(`<div class="pvsp" style="${st}">${esc(body).replace(/\n/g, '<br>')}</div>`);
+  }
+
+  /* Imágenes (se incrustan como data URL: nada sale del dispositivo). */
+  for (const pic of (xml.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || [])) {
+    const off = /<a:off x="(-?\d+)" y="(-?\d+)"\/>/.exec(pic);
+    const rid = /r:embed="([^"]+)"/.exec(pic);
+    if (!off || !rid || !rels) continue;
+    const m = new RegExp('Id="' + rid[1] + '"[^>]*Target="([^"]+)"').exec(rels);
+    if (!m) continue;
+    const path = 'ppt/' + m[1].replace(/^\.\.\//, '').replace(/^\/+/, '');
+    const url = await zipMedia(zip, path);
+    if (!url) continue;
+    const ext = /<a:ext cx="(\d+)" cy="(\d+)"\/>/.exec(pic);
+    const x = emu2px(off[1]), y = emu2px(off[2]);
+    const w = ext ? emu2px(ext[1]) : 200, h = ext ? emu2px(ext[2]) : 150;
+    partes.push(`<img class="pvsp" src="${url}" alt="" style="left:${k(x)}px;top:${k(y)}px;width:${k(w)}px;height:${k(h)}px">`);
+  }
+
+  return `<div class="pvbox">
+    <div class="pvslide-n">Diapositiva ${num}</div>
+    <div class="pvcanvas" style="width:${k(SW)}px;height:${k(SH)}px">${partes.join('')}</div>
+  </div>`;
 }
 
 /** Texto de cada diapositiva (título + viñetas) de un .pptx. */

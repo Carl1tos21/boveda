@@ -287,6 +287,13 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .pvslide ul{margin:0;padding-left:20px}
 .pvslide li{margin:2px 0;font-size:13.5px}
 
+/* --- PowerPoint: diapositiva dibujada con su maquetación real --- */
+.pvdeck{width:100%;align-self:stretch;overflow:auto;display:grid;gap:16px;padding:4px}
+.pvbox{display:flex;flex-direction:column;gap:6px}
+.pvcanvas{position:relative;background:#fff;color:#111;border:1px solid var(--bd);border-radius:10px;box-shadow:var(--sh);overflow:hidden;max-width:100%}
+.pvsp{position:absolute;white-space:pre-wrap;overflow:hidden;line-height:1.25;word-break:break-word}
+img.pvsp{object-fit:contain}
+
 /* --- Vista previa de archivos (texto, hojas de cálculo, audio) --- */
 .pvtext{white-space:pre-wrap;word-break:break-word;text-align:left;padding:16px;width:100%;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6}
 .pvaudio{width:100%;display:flex;align-items:center;justify-content:center;padding:20px}

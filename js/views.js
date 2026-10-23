@@ -139,11 +139,53 @@ function folderHtml(name, items) {
       : '');
 }
 
+/** Familia del archivo (define el color de la insignia de formato). */
+function fileFamily(d) {
+  const t = String(d.type || '').toLowerCase();
+  const name = String(d.file || d.name || '').toLowerCase();
+  const ext = (name.match(/\.([a-z0-9]+)$/) || [, ''])[1];
+  const has = a => a.indexOf(ext) >= 0;
+  if (/^image\//.test(t) || has(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico'])) return 'img';
+  if (ext === 'pdf' || /pdf/.test(t)) return 'pdf';
+  if (has(['xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'csv', 'tsv']) || /spreadsheet|excel|csv/.test(t)) return 'sheet';
+  if (has(['docx', 'doc', 'odt', 'rtf']) || /word/.test(t)) return 'doc';
+  if (has(['pptx', 'ppt', 'odp']) || /presentation/.test(t)) return 'ppt';
+  if (/^video\//.test(t) || has(['mp4', 'webm', 'mov', 'm4v', 'ogv'])) return 'video';
+  if (/^audio\//.test(t) || has(['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'])) return 'audio';
+  if (has(['zip', 'rar', '7z'])) return 'zip';
+  return 'other';
+}
+
+/** Fecha «humana»: hoy · ayer · hace 3 días · hace 2 semanas · 21/10/2026. */
+function relTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d)) return '';
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const n = new Date();
+  const b = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const dias = Math.round((b - a) / 86400000);
+  if (dias <= 0) return 'hoy';
+  if (dias === 1) return 'ayer';
+  if (dias < 7) return 'hace ' + dias + ' días';
+  if (dias < 30) { const s = Math.floor(dias / 7); return 'hace ' + s + ' semana' + (s === 1 ? '' : 's'); }
+  return d.toLocaleDateString('es');
+}
+
 function docRowHtml(d) {
   const t = d.fav ? 'Quitar de favoritos' : 'Marcar como favorito';
+  const ext = extOf(d);
+  const fam = fileFamily(d);
+  const file = String(d.file || '');
+  /* Si el nombre del archivo es igual al título, no se repite. */
+  const repetido = !file || file.replace(/\.[^.]+$/, '').toLowerCase() === String(d.name || '').toLowerCase();
+  const meta = [repetido ? '' : file, fmt(d.size), relTime(d.date)].filter(Boolean).join(' · ');
   return `<div class="row2" draggable="true" data-drag="doc" data-a="open" data-id="${d.id}">
-    <span class="tile" data-th="${d.id}" style="background:${tileColor(d.cat || 'General')}">${esc(extOf(d))}</span>
-    <span class="nm"><b>${esc(d.name)}</b><span>${esc(d.file || '')} · ${fmt(d.size)} · ${dateStr(d.date)}</span></span>
+    <span class="tile" data-th="${d.id}" style="background:${tileColor(d.cat || 'General')}">${esc(ext)}</span>
+    <span class="nm">
+      <span class="nm-top"><b>${esc(d.name)}</b><i class="fmt fam-${fam}">${esc(ext)}</i></span>
+      <span class="nm-sub">${esc(meta)}</span>
+    </span>
     <span class="qa">
       <button data-a="fav" data-id="${d.id}" class="${d.fav ? 'fav' : ''}" title="${t}">${ic(d.fav ? 'starOn' : 'star')}</button>
       <button data-a="share" data-id="${d.id}" title="Compartir">${ic('share')}</button>

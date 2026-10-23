@@ -38,7 +38,9 @@ function chrome() {
      <button class="ibtn" data-a="scan" title="Escanear">${ic('scan')}</button>
      <div class="who" id="who" data-a="whomenu" title="Tu cuenta"></div>`;
 
-  $('#srw').innerHTML = ic('search') + '<input id="q" placeholder="Buscar en tu bóveda...">';
+  const esMac = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+  $('#srw').innerHTML = ic('search') + '<input id="q" placeholder="Buscar en tu bóveda...">' +
+    `<span class="kbd"><kbd>${esMac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></span>`;
   $('#q').oninput = e => {
     qs = e.target.value.toLowerCase();
     if (view !== 'docs') view = 'docs';
@@ -159,3 +161,41 @@ function privacyDialog() {
 
   <div class="fx"><button class="btn p" data-a="close">Cerrar</button></div>`);
 }
+
+/* ===================== Menú desplegable de la cuenta =================== */
+
+/** Abre el menú de la cuenta (avatar de la barra superior). */
+function accountMenu() {
+  closeAccountMenu();
+  const mail = (prefs.driveConnected && prefs.driveEmail) ? prefs.driveEmail : '';
+  const box = document.createElement('div');
+  box.className = 'usermenu';
+  box.id = 'usermenu';
+  box.innerHTML = `
+    <div class="um-head">
+      <b>${esc(mail || 'Sin cuenta')}</b>
+      <span>${prefs.driveConnected ? 'Google Drive conectado' : 'Bóveda local (sin Drive)'}</span>
+    </div>
+    <button data-a="whomenu">${ic('cfg')}Ajustes y respaldo</button>
+    <button data-a="lockn">${ic('lock')}Bloquear ahora</button>
+    <div class="umsep"></div>
+    ${prefs.driveConnected
+      ? `<button class="d" data-a="gdisconnect">${ic('cloud')}Desconectar Google Drive</button>`
+      : `<button data-a="gconnect">${ic('cloud')}Conectar Google Drive</button>`}`;
+  document.body.appendChild(box);
+}
+
+/** Cierra el menú de la cuenta si está abierto. */
+function closeAccountMenu() {
+  const el = document.getElementById('usermenu');
+  if (el) el.remove();
+}
+
+/* Se cierra al pulsar fuera o con Escape. */
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  if (t.closest('#usermenu')) { setTimeout(closeAccountMenu, 0); return; }
+  if (!t.closest('#who')) closeAccountMenu();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAccountMenu(); });

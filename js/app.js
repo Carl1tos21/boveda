@@ -54,7 +54,7 @@ const ACTIONS = {
   /* Ayuda y cuenta */
   help: () => helpDialog(),
   privacy: () => privacyDialog(),
-  whomenu: () => { view = 'set'; render(); },
+  whomenu: () => accountMenu(),
 
   /* Datos personales */
   inadd: () => infoForm(null),
@@ -133,6 +133,29 @@ document.addEventListener('click', e => {
   const a = el.dataset.a;
   const fn = a && ACTIONS[a];
   if (fn) { e.preventDefault(); fn(el); }
+});
+
+/* --------------------- Atajos de teclado globales ---------------------- */
+
+/** ¿La app está desbloqueada y visible? */
+const appVisible = () => !!($('#app') && !$('#app').hidden);
+
+document.addEventListener('keydown', e => {
+  /* Ctrl+K (o ⌘K en Mac): enfocar el buscador. */
+  if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'k') {
+    e.preventDefault();
+    if (appVisible()) { const q = $('#q'); if (q) { q.focus(); q.select(); } }
+    return;
+  }
+  /* «/» para buscar, salvo si se está escribiendo en un campo. */
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const tag = (e.target && e.target.tagName) || '';
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) return;
+    if (!appVisible()) return;
+    e.preventDefault();
+    const q = $('#q');
+    if (q) q.focus();
+  }
 });
 
 /* --------------------- Entradas de archivo ----------------------------- */

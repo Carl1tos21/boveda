@@ -141,7 +141,7 @@ function folderHtml(name, items) {
 
 function docRowHtml(d) {
   const t = d.fav ? 'Quitar de favoritos' : 'Marcar como favorito';
-  return `<div class="row2" data-a="open" data-id="${d.id}">
+  return `<div class="row2" draggable="true" data-drag="doc" data-a="open" data-id="${d.id}">
     <span class="tile" data-th="${d.id}" style="background:${tileColor(d.cat || 'General')}">${esc(extOf(d))}</span>
     <span class="nm"><b>${esc(d.name)}</b><span>${esc(d.file || '')} · ${fmt(d.size)} · ${dateStr(d.date)}</span></span>
     <span class="qa">
@@ -224,6 +224,7 @@ async function openDocDrawer(id, tab) {
       <div class="df">
         <button class="btn p" data-a="share" data-id="${d.id}">${ic('share')}Compartir</button>
         <button class="btn" data-a="dl" data-id="${d.id}">${ic('dl')}Descargar</button>
+        <button class="btn" data-a="movedlg" data-id="${d.id}">${ic('folder')}Mover</button>
         <button class="btn" data-a="pdf" data-id="${d.id}">${ic('file')}PDF</button>
         <button class="btn" data-a="pr" data-id="${d.id}">${ic('pr')}Imprimir</button>
         <button class="btn" data-a="fav" data-id="${d.id}">${ic(d.fav ? 'starOn' : 'star')}${d.fav ? 'En favoritos' : 'Favorito'}</button>
@@ -416,16 +417,40 @@ async function addFilesToFolder(name, files) {
   toast(n + ' archivo' + (n === 1 ? '' : 's') + ' guardado' + (n === 1 ? '' : 's') + ' en «' + cat + '» ✅');
 }
 
-/** Arrastrar archivos del sistema y soltarlos encima de una carpeta. */
+/**
+ * Arrastrar y soltar sobre una carpeta:
+ *   • archivos del sistema   -> se GUARDAN en esa carpeta
+ *   • un documento de la app -> se MUEVE a esa carpeta
+ */
+let draggedDocId = null;   // documento que se arrastra dentro de la propia app
+
 (function initFolderDrop() {
   const carpetaDe = el => (el && el.closest) ? el.closest('.fld') : null;
+
+  /* Empezar a arrastrar un documento de la lista. */
+  document.addEventListener('dragstart', e => {
+    const row = (e.target && e.target.closest) ? e.target.closest('[data-drag="doc"]') : null;
+    if (!row) return;
+    draggedDocId = row.dataset.id;
+    row.classList.add('dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', draggedDocId); } catch (x) { }
+    }
+  });
+
+  document.addEventListener('dragend', () => {
+    draggedDocId = null;
+    $$('.row2.dragging').forEach(r => r.classList.remove('dragging'));
+    $$('.fld.drop').forEach(f => f.classList.remove('drop'));
+  });
 
   document.addEventListener('dragover', e => {
     if (view !== 'docs') return;
     const f = carpetaDe(e.target);
     if (!f) return;
     e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    if (e.dataTransfer) e.dataTransfer.dropEffect = draggedDocId ? 'move' : 'copy';
     $$('.fld.drop').forEach(x => { if (x !== f) x.classList.remove('drop'); });
     f.classList.add('drop');
   });
@@ -441,8 +466,52 @@ async function addFilesToFolder(name, files) {
     if (!f) return;
     e.preventDefault();
     f.classList.remove('drop');
+
+    /* 1) Un documento de la bóveda -> mover de carpeta. */
+    if (draggedDocId) {
+      const id = draggedDocId;
+      draggedDocId = null;
+      await moveDocToFolder(id, f.dataset.f);
+      return;
+    }
+
+    /* 2) Archivos del sistema -> guardarlos en esa carpeta. */
     const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
     if (!files.length) return;
     await addFilesToFolder(f.dataset.f, files);
   });
 })();
+
+/** Mueve un documento a otra carpeta (cambia su categoría). */
+async function moveDocToFolder(id, folder) {
+  const d = docs.find(x => x.id === id);
+  if (!d) return;
+  const actual = d.cat || 'General';
+  if (actual === folder) return toast('«' + d.name + '» ya está en «' + folder + '»');
+  d.cat = folder;
+  await saveDoc(d);
+  if (openFolders) openFolders.add(folder);   // que la carpeta destino quede abierta
+  await load();
+  toast('Movido a «' + folder + '» ✅');
+}
+
+/** Diálogo para mover un documento a otra carpeta (útil en el móvil). */
+function moveDocDialog(id) {
+  const d = docs.find(x => x.id === id);
+  if (!d) return;
+  const actual = d.cat || 'General';
+  const otras = allFolderNames(docs).filter(f => f !== actual);
+  if (!otras.length) return toast('No hay otras carpetas. Crea una con «Nueva carpeta».');
+  openModal(`<h2>Mover a otra carpeta</h2>
+  <div class="mu" style="margin-bottom:12px">«${esc(d.name)}» está en <b>${esc(actual)}</b>. Elige la carpeta de destino:</div>
+  <div style="display:grid;gap:8px;max-height:52vh;overflow:auto">
+    ${otras.map(f => `<button class="btn" data-a="moveto" data-id="${esc(d.id)}" data-f="${esc(f)}" style="justify-content:flex-start">${ic('folder')}${esc(f)}</button>`).join('')}
+  </div>
+  <div class="fx"><button class="btn" data-a="close">Cancelar</button></div>`);
+}
+
+/** Acción: mover el documento a la carpeta elegida en el diálogo. */
+async function moveDocFromDialog(id, folder) {
+  closeModal();
+  await moveDocToFolder(id, folder);
+}

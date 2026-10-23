@@ -19,6 +19,8 @@ const ACTIONS = {
   ed: el => editDoc(el.dataset.id),
   rm: el => removeDoc(el.dataset.id),
   pdf: el => pdfDoc(el.dataset.id),
+  movedlg: el => moveDocDialog(el.dataset.id),
+  moveto: el => moveDocFromDialog(el.dataset.id, el.dataset.f),
   pvsheet: el => pvSheet(el.dataset.s),
 
   /* Compartir */

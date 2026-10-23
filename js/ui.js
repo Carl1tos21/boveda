@@ -129,7 +129,7 @@ function helpDialog() {
     <div class="mu">Con el botón <b>+</b> del riel: sube un archivo, toma una foto o escanea varias páginas (se juntan en un PDF).</div></div>
 
   <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Carpetas y favoritos</h2>
-    <div class="mu">Los documentos se agrupan por <b>categoría</b> (que actúa de carpeta). Pulsa una carpeta para abrirla o cerrarla. La ★ marca un documento como favorito, y «Mostrar» permite ver solo los favoritos.</div></div>
+    <div class="mu">Los documentos se agrupan por <b>carpeta</b>. Con <b>«Nueva carpeta»</b> creas una y con <b>⬆</b> subes archivos dentro. Puedes <b>arrastrar archivos</b> del ordenador <b>encima de una carpeta</b> para guardarlos ahí, y <b>arrastrar un documento</b> a otra carpeta para moverlo (en el móvil, usa <b>Mover</b> en el panel del documento). Pulsa una carpeta para abrirla o cerrarla. La ★ marca un documento como favorito.</div></div>
 
   <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Compartir</h2>
     <div class="mu">En el <b>celular</b>, «Compartir» abre el menú del sistema con el archivo adjunto (WhatsApp, Gmail…). En la <b>computadora</b>, los navegadores no permiten adjuntar desde una web: se abre la conversación con el mensaje escrito y descargas el archivo para adjuntarlo con el clip 📎.</div></div>

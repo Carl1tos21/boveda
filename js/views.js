@@ -14,8 +14,9 @@ const FILTER_LABELS = {
   pdf: 'Solo PDF'
 };
 
-/** Colores de las fichas; se elige uno estable a partir del nombre. */
-const TILE_COLORS = ['#3b6cf6', '#e5337f', '#12a06a', '#f59f00', '#8b5cf6', '#0ea5e9', '#d92d20', '#0f766e'];
+/** Colores de las fichas; se elige uno estable a partir del nombre.
+ *  Todos verificados ≥5:1 con texto blanco encima (WCAG AA). */
+const TILE_COLORS = ['#2563eb', '#4338ca', '#6d28d9', '#9d174d', '#b91c1c', '#c2410c', '#047857', '#0f766e'];
 
 function tileColor(name) {
   const s = String(name || '');

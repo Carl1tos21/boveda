@@ -132,9 +132,11 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .qa button{width:32px;height:32px;border:0;background:none;border-radius:8px;color:var(--mu);display:grid;place-items:center;cursor:pointer}
 .qa button:hover{background:var(--bd);color:var(--ac)}
 .qa button.fav{color:#ffb400}
-.tree.compact .row2{padding:6px 14px 6px 44px}
-.tree.compact .tile{width:26px;height:26px;border-radius:7px;font-size:9px}
-.tree.compact .row2 .nm span{display:none}
+.tree.compact .row2{padding:7px 16px 7px 48px}
+.tree.compact .tile{width:28px;height:28px;border-radius:8px;font-size:9.5px}
+.tree.compact .row2 .nm .nm-sub{display:none}
+.tree.compact .row2 .nm .nm-top b{font-size:13.5px}
+.tree.compact .fmt{font-size:9px;padding:1px 5px;border-radius:4px}
 
 /* ---------- Barra de estado inferior (estilo Keeper) ---------- */
 .status{position:fixed;left:0;right:0;bottom:0;z-index:8;display:flex;align-items:center;gap:6px;padding:7px 16px;background:var(--card);border-top:1px solid var(--bd);font-size:12px;color:var(--mu)}
@@ -319,8 +321,9 @@ img.pvsp{object-fit:contain}
 .fmt.fam-zip{background:rgba(161,98,7,.12);color:#a16207}
 
 /* --- Carpetas: un poco más de aire --- */
-.fld{padding:14px 16px;transition:background .18s ease}
-.tree.compact .fld{padding:10px 16px}
+.fld{padding:14px 16px;background:var(--bg);transition:background .18s ease}
+.fld:hover{background:var(--ac2)}
+.tree.compact .fld{padding:11px 16px}
 
 /* --- Cuadrícula: tarjetas algo más grandes --- */
 .grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}

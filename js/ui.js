@@ -156,6 +156,9 @@ function privacyDialog() {
   <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Sincronización con Google Drive</h2>
     <div class="mu">Si la activas, se sube a <b>tu</b> Drive el respaldo <b>ya cifrado</b>: Google solo ve un archivo ilegible. El permiso usado (<code>drive.file</code>) no da acceso al resto de tu Drive. Puedes desconectarla cuando quieras.</div></div>
 
+  <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Ver con el visor de Google (opcional)</h2>
+    <div class="mu">Si pulsas <b>«Ver con Drive»</b> en un documento, se sube una copia <b>SIN CIFRAR</b> de ese archivo a tu Drive, para que el visor de Google pueda mostrarlo. <b>Google podrá leerlo.</b> Es opcional, <b>documento por documento</b>, y esa copia se puede borrar con <b>«Quitar de Drive»</b>. Si no lo usas, nada sale de tu dispositivo.</div></div>
+
   <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Al compartir un documento</h2>
     <div class="mu">El documento <b>sale descifrado</b> de la bóveda: a partir de ahí depende de la app por la que lo envíes. La app te lo avisa cada vez.</div></div>
 

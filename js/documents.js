@@ -100,6 +100,7 @@ async function viewDoc(id) {
         ${d.notes ? esc(d.notes) + ' · ' : ''}Descargar conserva tu archivo original (${esc(extOf(d))})
       </div>
       <button class="btn" data-a="dl" data-id="${d.id}">${ic('dl')}Descargar ${esc(extOf(d))}</button>
+      <button class="btn" data-a="drvview" data-id="${d.id}">${ic('cloud')}Ver con Drive</button>
       <button class="btn" data-a="pdf" data-id="${d.id}">${ic('file')}Guardar como PDF</button>
       <button class="btn" data-a="pr" data-id="${d.id}">${ic('pr')}Imprimir</button>
       <button class="btn p" data-a="ed" data-id="${d.id}">${ic('ed')}Editar</button>
@@ -146,6 +147,7 @@ async function removeDoc(id) {
   const d = docs.find(x => x.id === id);
   if (!d) return;
   if (!await confirmDialog('Eliminar documento', `¿Eliminar «${d.name}»? Esta acción no se puede deshacer.`)) return;
+  if (d.driveId) driveDeleteOriginal(d);   // borra también la copia sin cifrar de Drive
   await del('docs', id);
   closeDrawer();
   await load();
@@ -693,5 +695,83 @@ async function printRendered(d) {
 function pdfDoc(id) {
   const d = docs.find(x => x.id === id);
   if (d) printRendered(d);
+}
+
+/* --------------- Visor de Google Drive (copia visible) ----------------- */
+
+/**
+ * Muestra el documento con el visor de Google Drive, incrustado en la app.
+ *
+ * ⚠️ El visor de Google necesita el archivo SIN CIFRAR en Drive, así que la
+ * primera vez se sube una copia (con aviso previo y permiso del usuario).
+ * La bóveda sigue guardando el original cifrado.
+ */
+async function drivePreviewDoc(id) {
+  const d = docs.find(x => x.id === id);
+  if (!d) return;
+  if (location.protocol === 'file:') return toast('Abre la app desde https:// para usar el visor de Drive');
+  if (!gdriveReady()) return toast('Falta configurar el ID de cliente de Google');
+  if (!driveConnected()) return toast('Conecta Google Drive en Ajustes → Sincronización');
+
+  let fid = d.driveId;
+
+  if (!fid) {
+    const ok = await confirmDialog(
+      'Ver con el visor de Google',
+      'Para verlo con el visor de Google, «' + d.name + '» se sube SIN CIFRAR a tu Google Drive. ' +
+      'Google podrá leerlo, y también cualquiera que entre en tu cuenta. ' +
+      'Tu bóveda seguirá guardando el original cifrado. ¿Continuar?',
+      'Subir y ver');
+    if (!ok) return;
+
+    toast('Subiendo a Drive…');
+    try {
+      const token = await driveTokenForAction();
+      if (!token) return toast('No se autorizó el acceso a Drive');
+      const blob = await getBlob(d);
+      fid = await driveUploadOriginal(token, d, blob);
+      if (!fid) return toast('No se pudo subir el archivo');
+      d.driveId = fid;
+      await saveDoc(d);
+      toast('Copia subida a Drive ✅');
+    } catch (e) {
+      return toast('No se pudo subir: ' + (e.message || 'error'));
+    }
+  }
+
+  closeDrawer();
+  openModal(`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="min-width:0"><b style="display:block;word-break:break-word">${esc(d.name)}</b>
+      <div class="mu"><span class="tag">${esc(d.cat || 'General')}</span>Visor de Google Drive</div></div>
+      <button class="btn s" data-a="close" title="Cerrar">✕</button>
+    </div>
+    <div class="view"><iframe src="${drivePreviewUrl(fid)}" title="Vista previa de Drive" allowfullscreen></iframe></div>
+    <div class="fx">
+      <div class="mu" style="flex:1;text-align:left;align-self:center">⚠️ Esta copia está <b>sin cifrar</b> en tu Drive.</div>
+      <button class="btn" data-a="drvopen" data-id="${esc(fid)}">${ic('cloud')}Abrir en Drive</button>
+      <button class="btn d" data-a="drvremove" data-id="${esc(d.id)}">${ic('tr')}Quitar de Drive</button>
+      <button class="btn p" data-a="close">Cerrar</button>
+    </div>`, true);
+}
+
+/** Abre la copia de Drive en una pestaña nueva. */
+function driveOpen(fid) {
+  const w = window.open(driveOpenUrl(fid), '_blank', 'noopener');
+  if (!w) toast('Permite las ventanas emergentes');
+}
+
+/** Borra la copia sin cifrar de Drive y olvida su id. */
+async function driveRemoveCopy(id) {
+  const d = docs.find(x => x.id === id);
+  if (!d || !d.driveId) return;
+  const ok = await confirmDialog('Quitar de Drive',
+    'Se borrará la copia SIN CIFRAR que está en tu Google Drive. Tu documento seguirá en la bóveda, cifrado.',
+    'Borrar de Drive');
+  if (!ok) return;
+  await driveDeleteOriginal(d);
+  d.driveId = '';
+  await saveDoc(d);
+  closeModal();
+  toast('Copia de Drive eliminada');
 }
 

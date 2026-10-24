@@ -19,6 +19,9 @@ pero sin estas protecciones.
 # sincronización, esos permisos simplemente no se aprovechan.
 GOOGLE = 'https://accounts.google.com'
 API_GOOGLE = 'https://www.googleapis.com'
+# Visor de Drive: permite incrustar la vista previa de Google dentro de la app
+# (solo se usa cuando el usuario pulsa «Ver con Drive» en un documento).
+VIEWER_GOOGLE = 'https://drive.google.com https://docs.google.com'
 
 CSP = '; '.join([
     "default-src 'self'",
@@ -28,7 +31,7 @@ CSP = '; '.join([
     "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self' " + API_GOOGLE + " https://oauth2.googleapis.com " + GOOGLE,
     "media-src 'self' blob:",
-    "frame-src blob: " + GOOGLE,
+    "frame-src blob: " + GOOGLE + " " + VIEWER_GOOGLE,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",

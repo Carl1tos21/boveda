@@ -190,6 +190,84 @@ const drive = {
   }
 };
 
+/* ------------- Visor de Google: copia visible del documento ------------- */
+/*
+ * Para VER un documento con el visor de Google hace falta que el archivo esté
+ * SIN CIFRAR en Drive (Google necesita leerlo para convertirlo).
+ * Por eso estas funciones SOLO se usan cuando el usuario lo pide expresamente
+ * y acepta el aviso. La bóveda sigue guardando el original cifrado.
+ */
+
+const DRIVE_FOLDER_NAME = 'Bóveda';
+
+/** Enlace para incrustar la vista previa de Drive dentro de la app. */
+const drivePreviewUrl = id => 'https://drive.google.com/file/d/' + encodeURIComponent(id) + '/preview';
+
+/** Enlace para abrir el archivo directamente en Drive. */
+const driveOpenUrl = id => 'https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view';
+
+/** Token válido, pidiéndolo al usuario si hace falta. */
+async function driveTokenForAction() {
+  let t = await driveAuth.token();
+  if (!t) t = await driveAuth.connect();
+  return t;
+}
+
+/** Busca (o crea) la carpeta «Bóveda» en Drive y devuelve su id. */
+async function driveEnsureFolder(token) {
+  try {
+    const q = encodeURIComponent(
+      "name='" + DRIVE_FOLDER_NAME + "' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+    const r = await fetch(`${DRIVE_API}?spaces=drive&q=${q}&pageSize=1&fields=files(id)`,
+      { headers: { Authorization: 'Bearer ' + token } });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.files && j.files[0]) return j.files[0].id;
+    }
+  } catch (e) { /* se intenta crear */ }
+  try {
+    const c = await fetch(DRIVE_API + '?fields=id', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+    });
+    if (!c.ok) return '';
+    const cj = await c.json();
+    return cj.id || '';
+  } catch (e) { return ''; }
+}
+
+/** Sube el archivo ORIGINAL (sin cifrar) a Drive y devuelve su id. */
+async function driveUploadOriginal(token, d, blob) {
+  const parent = await driveEnsureFolder(token);
+  const meta = { name: d.file || d.name || 'documento' };
+  if (parent) meta.parents = [parent];
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+  form.append('file', blob, meta.name);
+  const r = await fetch(DRIVE_UPLOAD + '?uploadType=multipart&fields=id', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token },
+    body: form
+  });
+  if (!r.ok) throw new Error('Drive respondió ' + r.status);
+  const j = await r.json();
+  return j.id || '';
+}
+
+/** Borra de Drive la copia visible de un documento (si la tiene). */
+async function driveDeleteOriginal(d) {
+  if (!d || !d.driveId) return;
+  try {
+    const t = await driveAuth.token();
+    if (!t) return;
+    await fetch(`${DRIVE_API}/${encodeURIComponent(d.driveId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + t }
+    });
+  } catch (e) { /* sin conexión o ya borrado: se ignora */ }
+}
+
 /* --------------------- Estado de la sincronización --------------------- */
 
 const SYNC_ID = 'drive';

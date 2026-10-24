@@ -106,7 +106,8 @@ async function saveDoc(d, k = key, rb = false) {
     date: d.date,
     blob: d._eb,
     meta: await E(k, enc.encode(JSON.stringify({
-      name: d.name, cat: d.cat, notes: d.notes, file: d.file, type: d.type, fav: !!d.fav
+      name: d.name, cat: d.cat, notes: d.notes, file: d.file, type: d.type, fav: !!d.fav,
+      driveId: d.driveId || ''      // id de la copia visible en Drive (visor de Google)
     })))
   });
   return d;

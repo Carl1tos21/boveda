@@ -1,0 +1,57 @@
+name: Construir y desplegar
+
+# Se ejecuta en cada push a main (y a mano desde la pestaña Actions).
+#
+# 1) Siempre construye dist/ y muestra el resultado en el log: sirve para
+#    detectar errores de build sin depender de Netlify.
+# 2) Si están configurados los secretos NETLIFY_AUTH_TOKEN y NETLIFY_SITE_ID,
+#    además publica el sitio con la API de Netlify (sin usar la integración
+#    de Git de Netlify, que puede romperse o quedarse parada).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Construir dist/
+        run: python3 tools/build.py
+
+      - name: Comprobar que no falta nada
+        run: |
+          test -f dist/index.html
+          test -f dist/js/onedrive.js
+          test -f dist/js/excel-quinquenios.js
+          test -f dist/ms-auth.html
+          test -f dist/_headers
+          echo "OK: dist/ está completo"
+
+      - name: Publicar en Netlify (solo si hay secretos)
+        if: ${{ env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != '' }}
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: ./dist
+          production-branch: main
+          production-deploy: true
+          deploy-message: 'Despliegue desde GitHub Actions'
+          enable-pull-request-comment: false
+          enable-commit-comment: false
+          overwrites-pull-request-comment: false
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

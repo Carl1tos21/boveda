@@ -61,4 +61,12 @@ def as_netlify_file():
     lines = ['/*']
     for k, v in HEADERS.items():
         lines.append('  %s: %s' % (k, v))
+
+    # El código de la app debe revalidarse siempre: así un despliegue nuevo se
+    # ve al recargar y nadie se queda con una versión antigua en caché.
+    for path in ('/index.html', '/ms-auth.html', '/sw.js', '/js/*', '/css/*', '/manifest.json'):
+        lines.append('')
+        lines.append(path)
+        lines.append('  Cache-Control: no-cache')
+
     return '\n'.join(lines) + '\n'

@@ -139,7 +139,6 @@ async function load() {
   folders = await loadFolders();
 
   loadSeq++;        // aviso de que la recarga terminó (lo usan las pruebas)
-  if (typeof qxLoaded === 'boolean') qxLoaded = false;   // la base Quin/Adel se recarga tras importar respaldos
   render();
   schedulePush();   // si Drive está conectado, sube los cambios (con retardo)
 }

@@ -667,85 +667,13 @@
         if (origCanShare) navigator.canShare = origCanShare;
       } catch (e) { }
 
-      /* -------- 14b. Quinquenios y Adelantos · hojas del Excel (MACRO/H1/H3) --- */
-      // Base de prueba en memoria (no depende de la red ni de la base incluida).
-      qxData = {
-        v: 1, origen: 'test', gen: '', empleados: [
-          Object.assign(qxEmptyEmpleado('ANA PRUEBA UNO'), {
-            fechaIngreso: '2015-03-01', cargo: 'ANALISTA', direccion: 'CALLE 1',
-            codUbicacion: 'SUSCZ', departamento: 'DPADBOD', numPersona: 'B001', sueldoBruto: '5000'
-          }),
-          qxEmptyEmpleado('BETO PRUEBA DOS')
-        ]
-      };
-      qxData.empleados[0].quinquenios[0].estado = 'CUMPLE';
-      qxData.empleados[0].quinquenios[0].visado = 'Sí';
-      qxLoaded = true;
-      qxSheet = 'macro';
-      qxPage = 0; qxFilter = ''; qxPageSize = 50;
-
-      view = 'qx'; render();
-      step('la vista Quin/Adel muestra las 3 pestañas',
-        await until(() => $$('.qxtab').length === 3 && /MACRO/.test($('#view').innerHTML) &&
-          /Hoja 1/.test($('#view').innerHTML) && /Hoja 3/.test($('#view').innerHTML)));
-
-      $('[data-a="qxsheet"][data-s="hoja1"]').click();
-      step('la Hoja 1 pinta la tabla editable',
-        await until(() => !!$('.qxgrid table.qxs') && $$('.qxs tbody tr').length === 2));
-      step('la Hoja 1 tiene 25 columnas de datos (+2 de control)',
-        $$('.qxs thead th').length === 27, $$('.qxs thead th').length);
-      step('los encabezados son los del Excel',
-        /NOMBRE COMPLETO/.test($('.qxs thead').innerHTML) && /1ER QUINQUENIO/.test($('.qxs thead').innerHTML) &&
-        /TERCER ADELANTO/.test($('.qxs thead').innerHTML));
-      step('la celda del nombre es editable',
-        ($('.qxs tbody tr .qxname input') || {}).value === 'ANA PRUEBA UNO');
-      step('la antigüedad se calcula al vuelo',
-        /años/.test(($('.qxs tbody tr [data-ant]') || {}).textContent || ''));
-
-      const cargoInput = $$('.qxs tbody tr')[0].querySelector('[data-qx="cargo"]');
-      cargoInput.value = 'JEFA DE BODEGA';
-      cargoInput.dispatchEvent(new Event('change', { bubbles: true }));
-      step('editar una celda actualiza el modelo',
-        qxData.empleados.find(e => e.nombre === 'ANA PRUEBA UNO').cargo === 'JEFA DE BODEGA');
-
-      $('[data-a="qxsheet"][data-s="hoja3"]').click();
-      step('la Hoja 3 pinta sus columnas de RRHH',
-        await until(() => /Address Line 1/.test($('#view').innerHTML) && /Sueldo Bruto/.test($('#view').innerHTML)));
-      step('la Hoja 3 muestra los datos importados',
-        /CALLE 1/.test($('#view').innerHTML) && /DPADBOD/.test($('#view').innerHTML));
-
-      qxAddWorkerDialog();
-      step('se abre el diálogo de añadir trabajador', await until(() => !!$('#qxnew-nombre')));
-      $('#qxnew-nombre').value = 'CARLA NUEVA TRABAJADORA';
-      $('#qxnew-cargo').value = 'OPERARIA';
-      $('[data-a="qxaddconfirm"]').click();
-      step('el trabajador se añade a la base',
-        await until(() => qxData.empleados.some(e => e.nombre === 'CARLA NUEVA TRABAJADORA')));
-      step('y aparece en la hoja de cálculo',
-        await until(() => /CARLA NUEVA TRABAJADORA/.test($('#view').innerHTML)));
-
-      const carla = qxData.empleados.find(e => e.nombre === 'CARLA NUEVA TRABAJADORA');
-      const delBtn = $('[data-a="qxdelrow"][data-id="' + carla.id + '"]');
-      step('cada fila ofrece eliminar el trabajador', !!delBtn);
-      delBtn.click();
-      step('se pide confirmación para eliminar', await until(() => !!$('#cfok')));
-      $('#cfok').click();
-      step('el trabajador se elimina',
-        await until(() => !qxData.empleados.some(e => e.nombre === 'CARLA NUEVA TRABAJADORA')));
-
-      if (window.XLSX) {
-        let xlsxSheets = null, xlsxName = '';
-        const origWrite = XLSX.writeFile;
-        XLSX.writeFile = (wb, name) => { xlsxSheets = wb.SheetNames.slice(); xlsxName = name; };
-        qxExportXlsx();
-        XLSX.writeFile = origWrite;
-        step('exporta un .xlsx con las 3 hojas',
-          !!xlsxSheets && xlsxSheets.join(',') === 'MACRO,Hoja1,Hoja3', xlsxSheets);
-        step('el archivo exportado conserva el nombre original',
-          xlsxName === 'MACRO_QUINQUENIOS.xlsx', xlsxName);
-      } else {
-        step('exportar .xlsx (SheetJS no disponible sin red)', true);
-      }
+      /* -------- 14b. Vista «Excel» (abrir hojas de cálculo) --- */
+      view = 'xls'; render();
+      step('la vista Excel se pinta con sus botones',
+        await until(() => !!$('[data-a="xlsonline"]') && !!$('[data-a="new"]')));
+      step('la vista Excel lista solo las hojas de cálculo de la bóveda',
+        $$('#view .row2').length === docs.filter(d => d.cat !== '_qx' && isSheet(d)).length,
+        $$('#view .row2').length);
 
       view = 'docs'; render();
 

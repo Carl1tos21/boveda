@@ -20,7 +20,7 @@ function chrome() {
      <div id="nav">
        <button class="rb" data-v="docs" title="Mi bóveda">${ic('sh')}</button>
        <button class="rb" data-v="info" title="Mis datos">${ic('id')}</button>
-       <button class="rb" data-v="qx" title="Quinquenios y Adelantos">${ic('file')}</button>
+       <button class="rb" data-v="xls" title="Excel">${ic('file')}</button>
        <button class="rb" data-a="scan" title="Escanear documento">${ic('scan')}</button>
        <button class="rb" data-a="sharepick" title="Compartir un documento">${ic('share')}</button>
        <button class="rb" data-a="help" title="Ayuda">${ic('help')}</button>
@@ -50,7 +50,7 @@ function chrome() {
   $('#bot').innerHTML =
     `<button data-v="docs">${ic('file')}Docs</button>
      <button data-v="info">${ic('id')}Datos</button>
-     <button data-v="qx">${ic('clock')}Quin/Adel</button>
+     <button data-v="xls">${ic('file')}Excel</button>
      <button class="sc" data-a="scan">${ic('scan')}</button>
      <button data-a="new">${ic('plus')}Subir</button>
      <button data-v="set">${ic('cfg')}Ajustes</button>`;
@@ -86,7 +86,7 @@ function render() {
 
   if (view === 'info') renderInfo();
   else if (view === 'set') renderSet();
-  else if (view === 'qx') renderQx();
+  else if (view === 'xls') renderXls();
   else renderDocs();
 }
 

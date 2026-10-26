@@ -96,30 +96,9 @@ const ACTIONS = {
   scanrot: () => scanRotate(),
   scansave: () => scanSave(),
 
-  /* Quinquenios y Adelantos */
-  qximport: () => QxActions.qximport(),
-  qximportfile: () => QxActions.qximportfile(),
-  qxmapconfirm: () => QxActions.qxmapconfirm(),
-  qxmapback: () => QxActions.qxmapback(),
-  qxseed: () => QxActions.qxseed(),
-  qxcat: el => QxActions.qxcat(el),
-  qxback: () => QxActions.qxback(),
-  qxficha: el => QxActions.qxficha(el),
-  qxsearch: () => QxActions.qxsearch(),
-  qxfec: () => QxActions.qxfec(),
-  qxprint: el => QxActions.qxprint(el),
-  qxprintall: () => QxActions.qxprintall(),
-  qxexport: () => QxActions.qxexport(),
-  /* Hojas de cálculo del Excel (MACRO · Hoja 1 · Hoja 3) */
-  qxsheet: el => QxActions.qxsheet(el),
-  qxadd: () => QxActions.qxadd(),
-  qxaddconfirm: () => QxActions.qxaddconfirm(),
-  qxdelrow: el => QxActions.qxdelrow(el),
-  qxpage: el => QxActions.qxpage(el),
-  qxpagesize: el => QxActions.qxpagesize(el),
-  qxfilter: () => QxActions.qxfilter(),
-  qxreload: () => QxActions.qxreload(),
-  qxexportxlsx: () => QxActions.qxexportxlsx()
+  /* Excel */
+  xlsonline: () => XlsActions.openExcelOnline(),
+  xlsopen: el => XlsActions.openInExcel(el.dataset.id)
 };
 
 /* --------------------- Delegación de eventos --------------------------- */

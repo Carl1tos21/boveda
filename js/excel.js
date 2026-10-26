@@ -81,10 +81,10 @@ async function openInExcel(id) {
   }
 }
 
-/** Abre Excel Online en una pestaña nueva. */
-function openExcelOnline() {
+/** Abre Excel Online (sin archivo) en una pestaña nueva. */
+function openExcelOnlineGeneric() {
   const w = window.open('https://www.office.com/launch/excel', '_blank', 'noopener');
   if (!w) toast('Permite las ventanas emergentes');
 }
 
-window.XlsActions = { openInExcel, openExcelOnline };
+window.XlsActions = { openInExcel, openExcelOnlineGeneric };

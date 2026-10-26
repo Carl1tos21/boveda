@@ -35,6 +35,7 @@ INCLUDE = [
     'js',
     'icons',
     'vendor',
+    'data',
 ]
 
 EXCLUDE_NAMES = {'.DS_Store', 'Thumbs.db', '__pycache__'}

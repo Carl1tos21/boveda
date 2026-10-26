@@ -37,6 +37,7 @@ const ASSETS = [
   './js/share.js',
   './js/gdrive-config.js',
   './js/gdrive.js',
+  './js/onedrive.js',
   './js/app.js',
   './js/excel.js',
   './icons/icon-192.png',

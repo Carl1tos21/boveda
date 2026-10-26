@@ -22,6 +22,9 @@ API_GOOGLE = 'https://www.googleapis.com'
 # Visor de Drive: permite incrustar la vista previa de Google dentro de la app
 # (solo se usa cuando el usuario pulsa «Ver con Drive» en un documento).
 VIEWER_GOOGLE = 'https://drive.google.com https://docs.google.com'
+# Microsoft (Excel Online): inicio de sesión y API de OneDrive.
+MS_LOGIN = 'https://login.microsoftonline.com'
+MS_GRAPH = 'https://graph.microsoft.com'
 
 CSP = '; '.join([
     "default-src 'self'",
@@ -29,7 +32,7 @@ CSP = '; '.join([
     "style-src 'self' 'unsafe-inline' " + GOOGLE,
     "img-src 'self' blob: data: https://*.googleusercontent.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "connect-src 'self' " + API_GOOGLE + " https://oauth2.googleapis.com " + GOOGLE,
+    "connect-src 'self' " + API_GOOGLE + " https://oauth2.googleapis.com " + GOOGLE + " " + MS_LOGIN + " " + MS_GRAPH,
     "media-src 'self' blob:",
     "frame-src blob: " + GOOGLE + " " + VIEWER_GOOGLE,
     "worker-src 'self' blob:",

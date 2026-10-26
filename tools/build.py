@@ -28,6 +28,7 @@ DIST = ROOT / 'dist'
 
 INCLUDE = [
     'index.html',
+    'ms-auth.html',
     'manifest.json',
     'sw.js',
     'css',

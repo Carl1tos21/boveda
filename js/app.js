@@ -97,8 +97,10 @@ const ACTIONS = {
   scansave: () => scanSave(),
 
   /* Excel */
-  xlsonline: () => XlsActions.openExcelOnline(),
-  xlsopen: el => XlsActions.openInExcel(el.dataset.id)
+  xlsonline: el => MsActions.openExcelOnline(el && el.dataset ? el.dataset.id : null),
+  xlsopen: el => XlsActions.openInExcel(el.dataset.id),
+  msconfig: () => MsActions.msSetupDialog(),
+  msdisconnect: () => MsActions.msDisconnect()
 };
 
 /* --------------------- Delegación de eventos --------------------------- */

@@ -37,9 +37,9 @@ function renderXls() {
       <div class="mu" style="margin-bottom:12px">Los archivos siguen <b>cifrados</b> en tu dispositivo. Elige cómo abrirlos:</div>
       <div style="display:grid;gap:10px">
         <button class="btn p" data-a="new" style="justify-content:flex-start">${ic('up')}Subir un Excel (.xlsx · .xls · .csv)</button>
-        <button class="btn" data-a="xlsonline" style="justify-content:flex-start">${ic('cloud')}Abrir Excel Online (pestaña nueva)</button>
+        <button class="btn" data-a="xlsonline" style="justify-content:flex-start">${ic('cloud')}Abrir Excel Online (Microsoft)</button>
       </div>
-      <div class="mu" style="margin-top:10px">Excel Online trabaja con los archivos de tu <b>OneDrive</b>. Para editar uno de la bóveda: pulsa <b>⬇ Abrir en Excel</b>, edítalo y súbelo de nuevo.</div>
+      <div class="mu" style="margin-top:10px"><b>Un clic en cualquier fila la abre en Excel Online</b> (Microsoft la sube a tu OneDrive y la muestra con el Excel de verdad). Con <b>⬇</b> se abre con tu Excel del ordenador y, al terminar, la subes de nuevo.</div>
     </div>
 
     ${lista.length
@@ -51,18 +51,18 @@ function renderXls() {
   thumbnails(lista);
 }
 
-/** Fila de una hoja de cálculo: un clic en la fila la ABRE en Excel. */
+/** Fila de una hoja de cálculo: un clic en la fila la ABRE en Excel Online. */
 function xlsRowHtml(d) {
   const ext = extOf(d);
-  return `<div class="row2" data-a="xlsopen" data-id="${d.id}" style="padding-left:16px">
+  return `<div class="row2" data-a="xlsonline" data-id="${d.id}" style="padding-left:16px">
     <span class="tile" style="background:${tileColor('Excel')}">${esc(ext)}</span>
     <span class="nm">
       <span class="nm-top"><b>${esc(d.name)}</b><i class="fmt fam-sheet">${esc(ext)}</i></span>
       <span class="nm-sub">${esc(fmt(d.size))} · ${esc(relTime(d.date))} · ${esc(d.cat || 'General')}</span>
     </span>
     <span class="qa">
-      <button data-a="xlsopen" data-id="${d.id}" title="Abrir en Excel">${ic('dl')}</button>
-      <button data-a="drvview" data-id="${d.id}" title="Ver con el visor de Google">${ic('cloud')}</button>
+      <button data-a="xlsonline" data-id="${d.id}" title="Abrir en Excel Online">${ic('cloud')}</button>
+      <button data-a="xlsopen" data-id="${d.id}" title="Abrir en tu Excel (escritorio)">${ic('dl')}</button>
       <button data-a="open" data-id="${d.id}" title="Vista previa">${ic('more')}</button>
     </span>
   </div>`;

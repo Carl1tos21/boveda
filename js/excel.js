@@ -58,10 +58,11 @@ function xlsRowHtml(d) {
     <span class="tile" style="background:${tileColor('Excel')}">${esc(ext)}</span>
     <span class="nm">
       <span class="nm-top"><b>${esc(d.name)}</b><i class="fmt fam-sheet">${esc(ext)}</i></span>
-      <span class="nm-sub">${esc(fmt(d.size))} · ${esc(relTime(d.date))} · ${esc(d.cat || 'General')}</span>
+      <span class="nm-sub">${esc(fmt(d.size))} · ${esc(relTime(d.date))} · ${esc(d.cat || 'General')}${d.msId ? ' · <b style="color:var(--ac)">Excel Online</b>' : ''}</span>
     </span>
     <span class="qa">
       <button data-a="xlsonline" data-id="${d.id}" title="Abrir en Excel Online">${ic('cloud')}</button>
+      ${d.msId ? `<button data-a="mspull" data-id="${d.id}" title="Traer los cambios de Excel Online">${ic('rot')}</button>` : ''}
       <button data-a="xlsopen" data-id="${d.id}" title="Abrir en tu Excel (escritorio)">${ic('dl')}</button>
       <button data-a="open" data-id="${d.id}" title="Vista previa">${ic('more')}</button>
     </span>

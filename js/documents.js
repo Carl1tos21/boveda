@@ -103,6 +103,7 @@ async function viewDoc(id) {
         ? `<button class="btn p" data-a="xlsonline" data-id="${d.id}">${ic('cloud')}Excel Online</button>
            <button class="btn" data-a="xlsopen" data-id="${d.id}">${ic('dl')}Abrir en Excel</button>`
         : `<button class="btn" data-a="dl" data-id="${d.id}">${ic('dl')}Descargar ${esc(extOf(d))}</button>`}
+      ${d.msId ? `<button class="btn" data-a="mspull" data-id="${d.id}">${ic('rot')}Traer de OneDrive</button>` : ''}
       <button class="btn" data-a="drvview" data-id="${d.id}">${ic('cloud')}Ver con Drive</button>
       <button class="btn" data-a="pdf" data-id="${d.id}">${ic('file')}Guardar como PDF</button>
       <button class="btn" data-a="pr" data-id="${d.id}">${ic('pr')}Imprimir</button>

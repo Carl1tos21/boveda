@@ -160,7 +160,10 @@ async function msEnsureFolder(token) {
   } catch (e) { return false; }
 }
 
-/** Sube el archivo a OneDrive y devuelve el enlace para abrirlo con Excel. */
+/**
+ * Sube el archivo a OneDrive y devuelve sus datos:
+ *   { id, url, mod }  → id del archivo, enlace para abrirlo y fecha de cambio.
+ */
 async function msUpload(token, d, blob) {
   await msEnsureFolder(token);
   const name = encodeURIComponent(d.file || d.name || 'documento.xlsx');
@@ -174,7 +177,111 @@ async function msUpload(token, d, blob) {
   });
   if (!r.ok) throw new Error('OneDrive respondió ' + r.status);
   const j = await r.json();
-  return j.webUrl || '';
+  return { id: j.id || '', url: j.webUrl || '', mod: j.lastModifiedDateTime || '' };
+}
+
+/* ---------------- Traer de vuelta los cambios de Excel Online ----------- */
+
+/** Datos del archivo en OneDrive (fecha de cambio y enlace de descarga). */
+async function msItemMeta(token, id) {
+  try {
+    const r = await fetch(MS_GRAPH + '/me/drive/items/' + encodeURIComponent(id) +
+      '?$select=id,name,size,lastModifiedDateTime,@microsoft.graph.downloadUrl', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+/** Descarga el contenido de un archivo de OneDrive. */
+async function msDownload(token, id, meta) {
+  /* 1) Enlace directo (el que recomienda Microsoft para el navegador). */
+  const direct = meta && meta['@microsoft.graph.downloadUrl'];
+  if (direct) {
+    try {
+      const r = await fetch(direct);
+      if (r.ok) return await r.blob();
+    } catch (e) { /* se intenta por la API */ }
+  }
+  /* 2) Por la API de Graph. */
+  try {
+    const r = await fetch(MS_GRAPH + '/me/drive/items/' + encodeURIComponent(id) + '/content', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (r.ok) return await r.blob();
+  } catch (e) { /* sin conexión */ }
+  return null;
+}
+
+/**
+ * Trae a la bóveda los cambios hechos en Excel Online.
+ * @param {object} d      documento
+ * @param {string} token  token de Microsoft
+ * @returns {Promise<boolean>} true si se actualizó
+ */
+async function msPullDoc(d, token) {
+  if (!d || !d.msId) return false;
+  const meta = await msItemMeta(token, d.msId);
+  if (!meta) return false;
+  /* Sin cambios desde la última vez: nada que hacer. */
+  if (d.msMod && meta.lastModifiedDateTime === d.msMod) return false;
+
+  const blob = await msDownload(token, d.msId, meta);
+  if (!blob || !blob.size) return false;
+
+  d._b = blob;                                   // contenido nuevo descifrado en memoria
+  d.msMod = meta.lastModifiedDateTime || '';
+  d.size = blob.size;
+  await saveDoc(d, key, true);                   // se vuelve a cifrar en la bóveda
+  return true;
+}
+
+let msPullBusy = false;
+let msLastCheck = 0;
+
+/**
+ * Comprueba en segundo plano si Excel Online cambió algún archivo y lo trae.
+ * Se llama al volver a la app (no gasta datos si no hay nada vinculado).
+ */
+async function msAutoPull(force) {
+  if (msPullBusy || !key) return;
+  if (!force && Date.now() - msLastCheck < 30000) return;
+  const vinculados = docs.filter(d => d.msId);
+  if (!vinculados.length) return;
+
+  msPullBusy = true;
+  msLastCheck = Date.now();
+  try {
+    const token = await msAccessToken(false);    // silencioso: sin ventanas
+    if (!token) return;
+    let n = 0;
+    for (const d of vinculados) {
+      try { if (await msPullDoc(d, token)) n++; } catch (e) { }
+    }
+    if (n) {
+      await load();
+      toast(n + ' archivo' + (n === 1 ? '' : 's') + ' actualizado' + (n === 1 ? '' : 's') + ' desde Excel Online ✅');
+    }
+  } catch (e) { /* silencioso */ }
+  finally { msPullBusy = false; }
+}
+
+/** Botón «Traer de OneDrive»: trae los cambios a mano, avisando siempre. */
+async function msPullManual(id) {
+  const d = docs.find(x => x.id === id);
+  if (!d) return;
+  if (!d.msId) return toast('Primero ábrelo con «Excel Online»');
+  if (location.protocol === 'file:') return toast('Abre la app desde https:// para usar Excel Online');
+  try {
+    const token = await msAccessToken(true);
+    if (!token) return toast('No se autorizó el acceso a Microsoft');
+    const ok = await msPullDoc(d, token);
+    if (ok) { await load(); toast('Cambios traídos de Excel Online ✅'); }
+    else toast('No hay cambios nuevos en Excel Online');
+  } catch (e) {
+    toast('No se pudo traer: ' + (e.message || 'error'));
+  }
 }
 
 /* ------------------------------ Acciones ------------------------------- */
@@ -197,10 +304,13 @@ async function openExcelOnline(id) {
 
     let url = d ? (d.msUrl || '') : '';
     if (d && !url) {
-      url = await msUpload(token, d, await getBlob(d));
-      if (!url) return toast('No se pudo subir el archivo a OneDrive');
-      d.msUrl = url;
+      const up = await msUpload(token, d, await getBlob(d));
+      if (!up.url) return toast('No se pudo subir el archivo a OneDrive');
+      d.msId = up.id;
+      d.msUrl = up.url;
+      d.msMod = up.mod;
       await saveDoc(d);
+      url = up.url;
     }
     if (!url) url = 'https://www.office.com/launch/excel';
 
@@ -238,4 +348,13 @@ async function msDisconnect() {
   toast('Microsoft desconectado');
 }
 
-window.MsActions = { openExcelOnline, msSetupDialog, msDisconnect, msClientId, saveMsClientId };
+/* Al volver a la app, se comprueba si Excel Online cambió algo. */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') msAutoPull(false);
+});
+addEventListener('focus', () => msAutoPull(false));
+
+window.MsActions = {
+  openExcelOnline, msSetupDialog, msDisconnect, msPullManual, msAutoPull,
+  msClientId, saveMsClientId
+};

@@ -140,7 +140,8 @@ function helpDialog() {
     <div class="mu">En <b>Ajustes</b> puedes exportar un respaldo cifrado y conectar tu Google Drive para ver lo mismo en el celular y la computadora.</div></div>
 
   <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Excel Online (Microsoft)</h2>
-    <div class="mu">Para abrir tus hojas de cálculo con el <b>Excel de Microsoft</b>, la app sube una copia a tu <b>OneDrive</b> y abre el enlace de Office. Necesita un <b>ID de cliente de Azure</b> (gratis, una sola vez): en <b>portal.azure.com</b> → <i>Microsoft Entra ID → Registros de aplicaciones → Nuevo registro</i>, tipo <b>Aplicación de página única (SPA)</b>, y en <i>URI de redirección</i> pon <code>TU-SITIO/ms-auth.html</code>. Pega el ID cuando la app te lo pida.</div></div>
+    <div class="mu">Para abrir tus hojas de cálculo con el <b>Excel de Microsoft</b>, la app sube una copia a tu <b>OneDrive</b> y abre el enlace de Office. Necesita un <b>ID de cliente de Azure</b> (gratis, una sola vez): en <b>portal.azure.com</b> → <i>Microsoft Entra ID → Registros de aplicaciones → Nuevo registro</i>, tipo <b>Aplicación de página única (SPA)</b>, y en <i>URI de redirección</i> pon <code>TU-SITIO/ms-auth.html</code>. Pega el ID cuando la app te lo pida.</div>
+    <div class="mu" style="margin-top:8px"><b>Sincronización automática:</b> lo que edites y guardes en Excel Online se trae solo a la bóveda <b>al volver a la app</b> (también puedes forzarlo con el botón <b>«Traer de OneDrive»</b>). Los archivos vinculados llevan la marca <b>Excel Online</b> en la lista.</div></div>
 
   <div class="fx"><button class="btn p" data-a="close">Entendido</button></div>`);
 }

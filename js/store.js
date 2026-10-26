@@ -108,7 +108,9 @@ async function saveDoc(d, k = key, rb = false) {
     meta: await E(k, enc.encode(JSON.stringify({
       name: d.name, cat: d.cat, notes: d.notes, file: d.file, type: d.type, fav: !!d.fav,
       driveId: d.driveId || '',     // id de la copia visible en Drive (visor de Google)
-      msUrl: d.msUrl || ''          // enlace del archivo en OneDrive (Excel Online)
+      msUrl: d.msUrl || '',         // enlace del archivo en OneDrive (Excel Online)
+      msId: d.msId || '',           // id del archivo en OneDrive
+      msMod: d.msMod || ''          // última fecha de cambio vista en OneDrive
     })))
   });
   return d;

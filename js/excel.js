@@ -51,17 +51,17 @@ function renderXls() {
   thumbnails(lista);
 }
 
-/** Fila de una hoja de cálculo con sus acciones rápidas. */
+/** Fila de una hoja de cálculo: un clic en la fila la ABRE en Excel. */
 function xlsRowHtml(d) {
   const ext = extOf(d);
-  return `<div class="row2" data-a="open" data-id="${d.id}" style="padding-left:16px">
+  return `<div class="row2" data-a="xlsopen" data-id="${d.id}" style="padding-left:16px">
     <span class="tile" style="background:${tileColor('Excel')}">${esc(ext)}</span>
     <span class="nm">
       <span class="nm-top"><b>${esc(d.name)}</b><i class="fmt fam-sheet">${esc(ext)}</i></span>
       <span class="nm-sub">${esc(fmt(d.size))} · ${esc(relTime(d.date))} · ${esc(d.cat || 'General')}</span>
     </span>
     <span class="qa">
-      <button data-a="xlsopen" data-id="${d.id}" title="Abrir en tu Excel (descargar)">${ic('dl')}</button>
+      <button data-a="xlsopen" data-id="${d.id}" title="Abrir en Excel">${ic('dl')}</button>
       <button data-a="drvview" data-id="${d.id}" title="Ver con el visor de Google">${ic('cloud')}</button>
       <button data-a="open" data-id="${d.id}" title="Vista previa">${ic('more')}</button>
     </span>

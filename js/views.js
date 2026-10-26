@@ -188,6 +188,7 @@ function docRowHtml(d) {
       <span class="nm-sub">${esc(meta)}</span>
     </span>
     <span class="qa">
+      ${isSheet(d) ? `<button data-a="xlsopen" data-id="${d.id}" title="Abrir en Excel">${ic('dl')}</button>` : ''}
       <button data-a="fav" data-id="${d.id}" class="${d.fav ? 'fav' : ''}" title="${t}">${ic(d.fav ? 'starOn' : 'star')}</button>
       <button data-a="share" data-id="${d.id}" title="Compartir">${ic('share')}</button>
       <button data-a="open" data-id="${d.id}" title="Abrir">${ic('more')}</button>

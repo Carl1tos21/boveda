@@ -99,11 +99,11 @@ async function viewDoc(id) {
       <div class="mu" style="flex:1;text-align:left;align-self:center">
         ${d.notes ? esc(d.notes) + ' · ' : ''}Descargar conserva tu archivo original (${esc(extOf(d))})
       </div>
-      <button class="btn" data-a="dl" data-id="${d.id}">${ic('dl')}Descargar ${esc(extOf(d))}</button>
+      <button class="btn${isSheet(d) ? ' p' : ''}" data-a="${isSheet(d) ? 'xlsopen' : 'dl'}" data-id="${d.id}">${ic('dl')}${isSheet(d) ? 'Abrir en Excel' : 'Descargar ' + esc(extOf(d))}</button>
       <button class="btn" data-a="drvview" data-id="${d.id}">${ic('cloud')}Ver con Drive</button>
       <button class="btn" data-a="pdf" data-id="${d.id}">${ic('file')}Guardar como PDF</button>
       <button class="btn" data-a="pr" data-id="${d.id}">${ic('pr')}Imprimir</button>
-      <button class="btn p" data-a="ed" data-id="${d.id}">${ic('ed')}Editar</button>
+      <button class="btn${isSheet(d) ? '' : ' p'}" data-a="ed" data-id="${d.id}">${ic('ed')}Editar</button>
     </div>`, true);
 }
 

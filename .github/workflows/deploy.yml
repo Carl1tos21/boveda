@@ -3,10 +3,13 @@ name: Construir y desplegar
 # Se ejecuta en cada push a main (y a mano desde la pestaña Actions).
 #
 # 1) Siempre construye dist/ y muestra el resultado en el log: sirve para
-#    detectar errores de build sin depender de Netlify.
-# 2) Si están configurados los secretos NETLIFY_AUTH_TOKEN y NETLIFY_SITE_ID,
-#    además publica el sitio con la API de Netlify (sin usar la integración
-#    de Git de Netlify, que puede romperse o quedarse parada).
+#    detectar errores de build sin depender de ningún hosting.
+# 2) Publica el sitio en Cloudflare Pages (si están configurados los secretos
+#    CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID).
+#
+# ¿Por qué Cloudflare Pages y no Netlify? Netlify pausa los despliegues al
+# agotar los créditos del plan; Cloudflare Pages es gratis e ilimitado y
+# respeta el archivo dist/_headers (con la CSP y las cabeceras de seguridad).
 
 on:
   push:
@@ -17,8 +20,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
     steps:
       - name: Descargar el código
@@ -41,17 +44,11 @@ jobs:
           test -f dist/_headers
           echo "OK: dist/ está completo"
 
-      - name: Publicar en Netlify (solo si hay secretos)
-        if: ${{ env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != '' }}
-        uses: nwtgck/actions-netlify@v3
+      - name: Publicar en Cloudflare Pages
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
+        uses: cloudflare/wrangler-action@v3
         with:
-          publish-dir: ./dist
-          production-branch: main
-          production-deploy: true
-          deploy-message: 'Despliegue desde GitHub Actions'
-          enable-pull-request-comment: false
-          enable-commit-comment: false
-          overwrites-pull-request-comment: false
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=boveda --branch=main
+

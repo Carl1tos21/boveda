@@ -9,7 +9,7 @@ function openAddMenu() {
   openModal(`<h2>Agregar documento</h2>
   <div class="mu" style="margin-bottom:14px">Elige de dónde tomar el documento</div>
   <div style="display:grid;gap:10px">
-    <button class="btn" data-a="pick" data-src="fi" style="justify-content:flex-start">${ic('up')}Subir archivo (PDF, imagen, Word, Excel, texto)</button>
+    <button class="btn" data-a="pick" data-src="fi" style="justify-content:flex-start">${ic('up')}Subir archivos — <b>puedes elegir varios a la vez</b></button>
     <button class="btn" data-a="pick" data-src="cam" style="justify-content:flex-start">${ic('cam')}Tomar foto con la cámara</button>
     <button class="btn" data-a="pick" data-src="gal" style="justify-content:flex-start">${ic('eye')}Elegir de la galería</button>
     <button class="btn" data-a="scan" style="justify-content:flex-start">${ic('scan')}Escanear varias páginas</button>
@@ -26,25 +26,61 @@ async function handleFiles(files) {
   const cat = pendingFolder || 'General';   // carpeta elegida con «subir a esta carpeta»
   pendingFolder = null;
 
-  if (arr.length > 1) {
-    // Varios archivos: se guardan con metadatos por defecto en la carpeta elegida.
-    for (const f of arr) {
-      await saveDoc({
-        id: uid(), date: Date.now(),
-        name: baseName(f.name), cat, notes: '',
-        file: f.name, type: f.type || 'application/octet-stream', _b: f
-      });
-    }
-    await load();
-    toast(arr.length + ' documentos agregados ✅');
-    return;
-  }
+  /* Varios archivos: un solo formulario para todos (carpeta y notas comunes). */
+  if (arr.length > 1) return multiDocForm(arr, cat);
 
   const f = arr[0];
   docForm({
     name: baseName(f.name), cat, notes: '',
     file: f.name, type: f.type || 'application/octet-stream', _b: f
   }, true);
+}
+
+/**
+ * Formulario único para subir VARIOS archivos de una vez.
+ * Se elige una carpeta y unas notas para todos; después cada uno se puede
+ * editar por separado.
+ */
+function multiDocForm(files, cat) {
+  const cats = Array.from(new Set(
+    DEFAULT_CATS.concat(folders).concat(docs.map(x => x.cat).filter(c => c && c !== '_qx'))
+  ));
+  const total = files.reduce((a, f) => a + (f.size || 0), 0);
+
+  openModal(`<h2>Subir ${files.length} archivos</h2>
+  <div class="mu" style="margin-bottom:12px">Se guardan todos juntos con estos datos. Después puedes editar cada uno.</div>
+  <div class="f"><label>Carpeta</label>
+    <input id="mfcat" list="mfcatlist" value="${esc(cat)}">
+    <datalist id="mfcatlist">${cats.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist></div>
+  <div class="f"><label>Notas (opcional, para todos)</label><textarea id="mfno" rows="2"></textarea></div>
+  <div class="pn" style="max-height:32vh;overflow:auto;margin-bottom:12px;padding:10px 12px">
+    ${files.map(f => `<div class="row" style="margin:0 0 6px;box-shadow:none">
+      <div class="v" style="font-weight:500;word-break:break-all">${esc(f.name)}</div>
+      <div class="l" style="width:auto;flex:none">${fmt(f.size || 0)}</div>
+    </div>`).join('')}
+  </div>
+  <div class="mu" style="margin-bottom:10px">${files.length} archivos · ${fmt(total)} en total · se guardarán cifrados</div>
+  <div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" id="mfok">${ic('ok')}Subir todos</button></div>`);
+
+  $('#mfok').onclick = async () => {
+    const category = ($('#mfcat').value || '').trim() || 'General';
+    const notes = ($('#mfno').value || '').trim();
+    closeModal();
+    let n = 0;
+    for (const f of files) {
+      try {
+        await saveDoc({
+          id: uid(), date: Date.now(),
+          name: baseName(f.name), cat: category, notes,
+          file: f.name, type: f.type || 'application/octet-stream', _b: f
+        });
+        n++;
+      } catch (e) { /* archivo ilegible: se salta */ }
+    }
+    if (openFolders) openFolders.add(category);
+    await load();
+    toast(n + ' documento' + (n === 1 ? '' : 's') + ' subido' + (n === 1 ? '' : 's') + ' ✅');
+  };
 }
 
 /** Formulario de metadatos (alta y edición). */

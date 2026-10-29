@@ -490,14 +490,18 @@ let draggedDocId = null;   // documento que se arrastra dentro de la propia app
     $$('.fld.drop').forEach(f => f.classList.remove('drop'));
   });
 
+  /** ¿Se están arrastrando archivos del sistema? */
+  const esArchivo = e => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') >= 0);
+
   document.addEventListener('dragover', e => {
     if (view !== 'docs') return;
+    if (!esArchivo(e) && !draggedDocId) return;      // no interferir al arrastrar texto
     const f = carpetaDe(e.target);
-    if (!f) return;
+    if (draggedDocId && !f) return;                  // mover un documento exige una carpeta
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = draggedDocId ? 'move' : 'copy';
     $$('.fld.drop').forEach(x => { if (x !== f) x.classList.remove('drop'); });
-    f.classList.add('drop');
+    if (f) f.classList.add('drop');
   });
 
   document.addEventListener('dragleave', e => {
@@ -508,22 +512,26 @@ let draggedDocId = null;   // documento que se arrastra dentro de la propia app
   document.addEventListener('drop', async e => {
     if (view !== 'docs') return;
     const f = carpetaDe(e.target);
-    if (!f) return;
-    e.preventDefault();
-    f.classList.remove('drop');
 
     /* 1) Un documento de la bóveda -> mover de carpeta. */
     if (draggedDocId) {
+      if (!f) return;
+      e.preventDefault();
+      f.classList.remove('drop');
       const id = draggedDocId;
       draggedDocId = null;
       await moveDocToFolder(id, f.dataset.f);
       return;
     }
 
-    /* 2) Archivos del sistema -> guardarlos en esa carpeta. */
+    /* 2) Archivos del sistema -> guardarlos (en la carpeta o en «General»). */
     const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
     if (!files.length) return;
-    await addFilesToFolder(f.dataset.f, files);
+    e.preventDefault();
+    if (f) f.classList.remove('drop');
+    const destino = f ? f.dataset.f : 'General';
+    if (files.length > 1) multiDocForm(files, destino);
+    else await addFilesToFolder(destino, files);
   });
 })();
 

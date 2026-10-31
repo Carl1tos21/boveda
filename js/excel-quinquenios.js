@@ -49,6 +49,10 @@ const QX_VISADO_OPTS = ['Sí', 'No'];
 /* Flujo de gestión del trámite de cada quinquenio (lo que hace RRHH). */
 const QX_GESTION_OPTS = ['Pendiente', 'En proceso', 'Aprobado', 'Pagado', 'Rechazado'];
 
+/** Nombres de los meses (calendario y constancias). */
+const QX_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
 /* --------------------------- Utilidades --------------------------------- */
 
 /** Minúsculas sin acentos (para comparar nombres como en el buscador). */
@@ -614,6 +618,77 @@ function qxPorDepto(meses) {
   return [...map.values()].sort((a, b) => b.emps - a.emps);
 }
 
+/** «2027-03» → «Marzo 2027». */
+function qxMesLargo(clave) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(clave || ''));
+  return m ? QX_MESES[+m[2] - 1] + ' ' + m[1] : String(clave || '');
+}
+
+/**
+ * Calendario de los próximos `n` meses: devuelve todos los meses del horizonte
+ * (aunque estén vacíos) con los quinquenios que vencen en cada uno.
+ */
+function qxCalendario(n) {
+  const r = qxAnalizaVenc(n);
+  const hoy = new Date();
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() + k, 1);
+    const clave = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    out.push({ clave: clave, mes: qxMesLargo(clave), items: [] });
+  }
+  const idx = {};
+  out.forEach((m, k) => { idx[m.clave] = k; });
+  r.proximos.forEach(x => {
+    const k = idx[String(x.iso).slice(0, 7)];
+    if (k != null) out[k].items.push(x);
+  });
+  return out;
+}
+
+/** Tabla del calendario de vencimientos (para el panel de RRHH). */
+function qxCalHTML(n) {
+  const cal = qxCalendario(n);
+  const filas = cal.map(m => `<tr${m.items.length ? '' : ' class="vacio"'}>
+      <td><b>${esc(m.mes)}</b></td>
+      <td class="n">${m.items.length}</td>
+      <td>${m.items.length
+        ? m.items.map(x => esc(x.e.nombre) + ' <span class="mu">(' +
+          esc(QX_QUIN_LABELS[x.i].split(' ')[0]) + ', en ' + x.dias + ' días)</span>').join('<br>')
+        : '<span class="mu">—</span>'}</td>
+    </tr>`).join('');
+  return `
+    <div class="pn">
+      <h2 style="font-size:15px;margin:0 0 8px">📅 Calendario de los próximos ${n} meses</h2>
+      <div class="qxdep"><table>
+        <thead><tr><th>Mes</th><th class="n">Vencimientos</th><th>Trabajadores</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table></div>
+    </div>`;
+}
+
+/** Exporta el calendario de vencimientos a un .xlsx real. */
+function qxCalExportXlsx() {
+  if (!window.XLSX) return toast('Falta la librería de Excel');
+  const cal = qxCalendario(12);
+  const aoa = [['MES', 'VENCIMIENTOS', 'TRABAJADOR', 'QUINQUENIO', 'FECHA', 'DÍAS', 'DEPARTAMENTO', 'ESTADO DEL TRÁMITE']];
+  cal.forEach(m => {
+    if (!m.items.length) { aoa.push([m.mes, 0, '', '', '', '', '', '']); return; }
+    m.items.forEach((x, k) => aoa.push([
+      k === 0 ? m.mes : '', k === 0 ? m.items.length : '',
+      x.e.nombre, QX_QUIN_LABELS[x.i], qxFmtCorto(x.iso), x.dias,
+      x.e.departamento || '', x.e.quinquenios[x.i].gestion || ''
+    ]));
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 32 }, { wch: 16 }, { wch: 12 },
+    { wch: 7 }, { wch: 20 }, { wch: 18 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Vencimientos');
+  XLSX.writeFile(wb, 'VENCIMIENTOS_QUINQUENIOS.xlsx');
+  toast('Calendario exportado ✅');
+}
+
 /** Tabla de resumen por departamento. */
 function qxDeptoHTML(filas) {
   if (!filas.length) return '';
@@ -670,6 +745,7 @@ function qxRenderVenc() {
       <span class="mu">Vencimientos de los próximos:</span>
       ${mesBtn(3)}${mesBtn(6)}${mesBtn(12)}
       <span class="sp"></span>
+      <button class="btn" data-a="qxcalxlsx">${ic('dl')}Exportar calendario</button>
       <button class="btn" data-a="qxvencprint">${ic('pr')}Imprimir panel</button>
     </div>
 
@@ -702,6 +778,8 @@ function qxRenderVenc() {
     ${bloque('🔎 Datos a revisar',
       r.revisar.map(x => fila(x.e, '⚠️ Revisar', x.texto)).join(''),
       'Los datos están completos ✅')}
+
+    ${qxCalHTML(12)}
 
     ${qxDeptoHTML(qxPorDepto(r.meses))}`;
 }
@@ -793,6 +871,110 @@ async function qxGestionSave(id, i) {
   qxBadgeN = -1;             // fuerza el recálculo del aviso del menú
   renderQx();
   toast('Gestión guardada ✅');
+}
+
+/* ------------------- Constancia de quinquenio (PDF) --------------------- */
+
+/** Diálogo para emitir la constancia: datos de la empresa y del firmante. */
+function qxConstanciaDialog(id, i) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e || !e.quinquenios[i]) return;
+  const emp = (qxData && qxData.empresa) || {};
+  const fecha = qxFechaQuin(e, i);
+  openModal(`<h2>Constancia · ${QX_QUIN_LABELS[i]}</h2>
+    <div class="mu" style="margin-bottom:12px">${esc(e.nombre)}<br>
+      ${QX_QUIN_LABELS[i]} cumplido el <b>${esc(qxFmtCorto(fecha) || '—')}</b></div>
+    <div class="f"><label>Nombre de la empresa</label><input id="qxc-emp" type="text" value="${esc(emp.nombre || '')}" placeholder="Razón social"></div>
+    <div class="f"><label>RIF</label><input id="qxc-rif" type="text" value="${esc(emp.rif || '')}" placeholder="J-12345678-9"></div>
+    <div class="f"><label>Ciudad</label><input id="qxc-ciudad" type="text" value="${esc(emp.ciudad || '')}" placeholder="Caracas"></div>
+    <div class="f"><label>Cargo del firmante</label><input id="qxc-cargo" type="text" value="${esc(emp.cargoFirma || '')}" placeholder="Gerente de Recursos Humanos"></div>
+    <div class="f"><label>Nombre del firmante</label><input id="qxc-firma" type="text" value="${esc(emp.nombreFirma || '')}"></div>
+    <div class="mu">Estos datos se recuerdan para las próximas constancias.</div>
+    <div class="fx"><button class="btn" data-a="close">Cancelar</button>
+      <button class="btn p" data-a="qxconstgen" data-id="${esc(id)}" data-i="${i}">${ic('pr')}Generar PDF</button></div>`);
+}
+
+/** Guarda los datos de la empresa, arma la constancia y abre la impresión. */
+async function qxConstanciaGen(id, i) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e || !e.quinquenios[i]) return;
+  const val = k => { const el = document.getElementById(k); return el ? String(el.value || '').trim() : ''; };
+  qxData.empresa = {
+    nombre: val('qxc-emp'), rif: val('qxc-rif'), ciudad: val('qxc-ciudad'),
+    cargoFirma: val('qxc-cargo'), nombreFirma: val('qxc-firma')
+  };
+  await qxPersist();
+  closeModal();
+  const doc = qxConstanciaPDF(e, i, qxData.empresa);
+  if (doc) qxOpenPrint(doc);
+}
+
+/** Arma el PDF de la constancia de quinquenio (documento para el trabajador). */
+function qxConstanciaPDF(e, i, emp) {
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { toast('Motor de PDF no disponible'); return null; }
+  const q = e.quinquenios[i] || {};
+  const doc = new jsPDF();
+  const W = 210, M = 24;
+  let y = 26;
+
+  doc.setFontSize(13); doc.setFont(undefined, 'bold');
+  doc.text(emp.nombre || 'LA EMPRESA', W / 2, y, { align: 'center' }); y += 6;
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  if (emp.rif) { doc.text(emp.rif, W / 2, y, { align: 'center' }); y += 5; }
+  doc.text('Recursos Humanos', W / 2, y, { align: 'center' }); y += 13;
+
+  doc.setFontSize(14); doc.setFont(undefined, 'bold');
+  doc.text('CONSTANCIA DE QUINQUENIO', W / 2, y, { align: 'center' }); y += 14;
+
+  doc.setFontSize(11); doc.setFont(undefined, 'normal');
+  const texto = 'Quien suscribe, ' + (emp.cargoFirma || 'en su carácter de representante de la empresa') +
+    ', hace constar que el(la) ciudadano(a) ' + (e.nombre || '—') +
+    ', titular de la cédula de identidad N.º ' + (e.numPersona || '—') +
+    ', ingresó a esta empresa el ' + (qxFmtCorto(e.fechaIngreso) || '—') +
+    ', y en consecuencia cumplió su ' + QX_QUIN_LABELS[i] +
+    ' el ' + (qxFmtCorto(qxFechaQuin(e, i)) || '—') +
+    ', correspondiente al período ' + (q.periodo || '—') + '.';
+  const lineas = doc.splitTextToSize(texto, W - M * 2);
+  doc.text(lineas, M, y); y += lineas.length * 5.5 + 10;
+
+  /* Cuadro de datos */
+  doc.setFontSize(10);
+  [
+    ['Trabajador(a)', e.nombre || '—'],
+    ['Cédula / N.º de personal', e.numPersona || '—'],
+    ['Cargo', e.cargo || '—'],
+    ['Departamento', e.departamento || '—'],
+    ['Fecha de ingreso', qxFmtCorto(e.fechaIngreso) || '—'],
+    ['Antigüedad', qxAntiguedad(e.fechaIngreso) || '—'],
+    [QX_QUIN_LABELS[i], (qxFmtCorto(qxFechaQuin(e, i)) || '—') + '  ·  ' + (q.periodo || 'sin período')],
+    ['Estado del trámite', q.gestion || '—'],
+    ['Fecha de gestión', qxFmtCorto(q.fechaGestion) || '—']
+  ].forEach(f => {
+    doc.setFont(undefined, 'bold'); doc.text(f[0] + ':', M, y);
+    doc.setFont(undefined, 'normal'); doc.text(String(f[1]), M + 64, y);
+    y += 6;
+  });
+  y += 8;
+
+  doc.setFontSize(11);
+  const hoy = new Date();
+  doc.text('Se expide la presente constancia en ' + (emp.ciudad || '—') + ', a los ' +
+    hoy.getDate() + ' días del mes de ' + QX_MESES[hoy.getMonth()].toLowerCase() +
+    ' de ' + hoy.getFullYear() + '.', M, y);
+  y += 32;
+
+  /* Líneas de firma */
+  doc.setDrawColor(120); doc.setLineWidth(0.4);
+  doc.line(M, y, M + 68, y);
+  doc.line(W - M - 68, y, W - M, y);
+  doc.setFontSize(9);
+  doc.text(emp.nombreFirma || 'Firma autorizada', M, y + 5);
+  doc.text(emp.cargoFirma || '', M, y + 10);
+  doc.text(e.nombre || '', W - M - 68, y + 5);
+  doc.text('Trabajador(a)', W - M - 68, y + 10);
+
+  return doc;
 }
 
 /** Vista principal «Quin/Adel»: pestañas MACRO · Hoja 1 · Hoja 3. */
@@ -1264,6 +1446,7 @@ async function renderQxFicha(id, from) {
       <td><input type="date" data-qx="quin-fechag" data-i="${i}" value="${esc(q.fechaGestion)}"></td>
       <td><input type="text" data-qx="quin-resp" data-i="${i}" value="${esc(q.responsable)}" placeholder="Quién lo tramita"></td>
       <td><input type="text" data-qx="quin-nota" data-i="${i}" value="${esc(q.nota)}" placeholder="Observaciones"></td>
+      <td><button class="btn qxgbtn" data-a="qxconst" data-id="${esc(e.id)}" data-i="${i}" title="Emitir la constancia de quinquenio">${ic('pr')}Constancia</button></td>
     </tr>`;
   }).join('');
 
@@ -1291,7 +1474,7 @@ async function renderQxFicha(id, from) {
       <h2 style="font-size:15px;margin:0 0 4px">Gestión del trámite</h2>
       <div class="mu" style="margin-bottom:8px">Pendiente → En proceso → Aprobado → Pagado. Sirve para saber qué queda por cerrar.</div>
       <div style="overflow-x:auto"><table class="qxt">
-        <tr><th style="min-width:150px">Quinquenio</th><th style="min-width:140px">Estado del trámite</th><th style="min-width:150px">Fecha de gestión</th><th style="min-width:170px">Responsable</th><th style="min-width:200px">Nota</th></tr>
+        <tr><th style="min-width:150px">Quinquenio</th><th style="min-width:140px">Estado del trámite</th><th style="min-width:150px">Fecha de gestión</th><th style="min-width:170px">Responsable</th><th style="min-width:200px">Nota</th><th>·</th></tr>
         ${filasGestion}
       </table></div>
     </div>
@@ -1620,6 +1803,10 @@ const QX_ACTIONS = {
   /* Gestión del trámite */
   qxgestion: el => qxGestionDialog(el.dataset.id, +el.dataset.i),
   qxgsave: el => qxGestionSave(el.dataset.id, +el.dataset.i),
+  /* Constancia de quinquenio y calendario */
+  qxconst: el => qxConstanciaDialog(el.dataset.id, +el.dataset.i),
+  qxconstgen: el => qxConstanciaGen(el.dataset.id, +el.dataset.i),
+  qxcalxlsx: () => qxCalExportXlsx(),
   qxexport: async () => {
     if (!qxData) return toast('No hay base para exportar');
     download(new Blob([JSON.stringify(qxData, null, 1)], { type: 'application/json' }),

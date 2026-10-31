@@ -11,7 +11,18 @@ except ImportError:
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
 STUBS = r"""
-var __view = { innerHTML: '' };
+var __lastPdf = null;
+function __FakePDF() { this.txt = []; }
+__FakePDF.prototype.setFontSize = function () { };
+__FakePDF.prototype.setFont = function () { };
+__FakePDF.prototype.text = function (t) { this.txt.push(String(t)); };
+__FakePDF.prototype.splitTextToSize = function (t) { return [String(t)]; };
+__FakePDF.prototype.setDrawColor = function () { };
+__FakePDF.prototype.setLineWidth = function () { };
+__FakePDF.prototype.line = function () { };
+__FakePDF.prototype.addPage = function () { };
+var window = { jspdf: { jsPDF: __FakePDF } };
+var __view = { innerHTML: '', querySelectorAll: function () { return []; } };
 var __toasts = [];
 var __printed = 0;
 function $(s){ return __view; }
@@ -30,7 +41,6 @@ var __saved = 0;
 var __rendered = 0;
 function openModal(html){ __modal = html; }
 function closeModal(){}
-var window = {};
 var document = {
   visibilityState: 'visible',
   querySelectorAll: function(){ return []; },
@@ -209,6 +219,67 @@ ok('las filas de «datos a revisar» no llevan Gestionar',
   (h2.match(/data-from="venc"/g) || []).length - (h2.match(/⚠️ Revisar/g) || []).length,
   (h2.match(/data-a="qxgestion"/g) || []).length + ' botones / ' +
   (h2.match(/data-from="venc"/g) || []).length + ' filas');
+qxSheet = 'macro';
+
+/* ---------- Bloque B: calendario de vencimientos y constancia ---------- */
+ok('qxMesLargo traduce el mes', qxMesLargo('2027-03') === 'Marzo 2027', qxMesLargo('2027-03'));
+ok('qxMesLargo aguanta vacios', qxMesLargo('') === '' && qxMesLargo(null) === '');
+
+var cal = qxCalendario(12);
+var mesHoy = (function () {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+})();
+ok('el calendario cubre 12 meses', cal.length === 12, cal.length);
+ok('el calendario arranca en el mes actual', cal[0].clave === mesHoy, cal[0].clave + ' vs ' + mesHoy);
+ok('los meses van en orden',
+  cal.every(function (m, k) { return k === 0 || m.clave > cal[k - 1].clave; }));
+ok('ningun vencimiento se pierde',
+  cal.reduce(function (a, m) { return a + m.items.length; }, 0) === qxAnalizaVenc(12).proximos.length,
+  cal.reduce(function (a, m) { return a + m.items.length; }, 0));
+ok('los meses vacios se muestran igual', cal.some(function (m) { return m.items.length === 0; }));
+
+qxSheet = 'venc';
+qxRenderVenc();
+var h3 = __view.innerHTML;
+ok('el panel pinta el calendario', /Calendario de los próximos 12 meses/.test(h3));
+ok('el calendario pone los 12 meses', (h3.match(/<td><b>[A-Z][a-z]+ \d{4}<\/b><\/td>/g) || []).length === 12,
+  (h3.match(/<td><b>[A-Z][a-z]+ \d{4}<\/b><\/td>/g) || []).length);
+ok('hay boton de exportar el calendario', /data-a="qxcalxlsx"/.test(h3));
+ok('el calendario exportable existe', typeof QX_ACTIONS.qxcalxlsx === 'function');
+
+/* Constancia */
+qxData.empresa = { nombre: 'ACME CA', rif: 'J-123', ciudad: 'Caracas',
+  cargoFirma: 'Gerente de RRHH', nombreFirma: 'Ana Jefa' };
+qxConstanciaDialog(g.id, 0);
+ok('el diálogo de constancia pide los datos de la empresa',
+  /qxc-emp/.test(__modal) && /qxc-rif/.test(__modal) && /qxc-ciudad/.test(__modal) &&
+  /qxc-cargo/.test(__modal) && /qxc-firma/.test(__modal));
+ok('el diálogo de constancia recuerda lo ya guardado',
+  /ACME CA/.test(__modal) && /Caracas/.test(__modal) && /Ana Jefa/.test(__modal));
+
+var pdf = qxConstanciaPDF(g, 0, qxData.empresa);
+ok('la constancia se genera', !!pdf);
+var txt = pdf ? pdf.txt.join(' | ') : '';
+ok('la constancia lleva el titulo', /CONSTANCIA DE QUINQUENIO/.test(txt));
+ok('la constancia nombra a la empresa', /ACME CA/.test(txt) && /J-123/.test(txt));
+ok('la constancia nombra al trabajador', /ZOE GESTION/.test(txt));
+ok('la constancia lleva la fecha de ingreso', /01\/03\/2015/.test(txt));
+ok('la constancia lleva el quinquenio y su fecha', /1er Quinquenio/.test(txt) && /01\/03\/2020/.test(txt));
+ok('la constancia lleva el estado del tramite', /Pagado/.test(txt));
+ok('la constancia lleva la ciudad y la firma',
+  /Caracas/.test(txt) && /Ana Jefa/.test(txt) && /Gerente de RRHH/.test(txt));
+ok('la constancia avisa si falta un dato', /—/.test(txt));
+
+var __savedPdf = window.jspdf;
+window.jspdf = {};
+__toasts.length = 0;
+ok('sin motor de PDF avisa y no revienta',
+  qxConstanciaPDF(g, 0, {}) === null && __toasts.length === 1);
+window.jspdf = __savedPdf;
+
+ok('las acciones de constancia existen',
+  typeof QX_ACTIONS.qxconst === 'function' && typeof QX_ACTIONS.qxconstgen === 'function');
 qxSheet = 'macro';
 
 JSON.stringify(out);

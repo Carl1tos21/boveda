@@ -733,6 +733,14 @@
       step('y desaparece al no quedar pendientes',
         await until(() => !$('[data-v="qx"] .qxnb')));
 
+      /* Bloque B: calendario de vencimientos de los próximos 12 meses */
+      step('el Panel RRHH pinta el calendario de 12 meses',
+        /Calendario de los próximos 12 meses/.test($('#view').innerHTML));
+      step('el calendario lista los 12 meses',
+        (($('#view').innerHTML.match(/<td><b>[A-Z][a-z]+ \d{4}<\/b><\/td>/g) || []).length) === 12,
+        (($('#view').innerHTML.match(/<td><b>[A-Z][a-z]+ \d{4}<\/b><\/td>/g) || []).length));
+      step('hay botón para exportar el calendario', !!$('[data-a="qxcalxlsx"]'));
+
       $('[data-a="qxsheet"][data-s="hoja1"]').click();
       step('la Hoja 1 pinta la tabla editable',
         await until(() => !!$('.qxgrid table.qxs') && $$('.qxs tbody tr').length === 2));
@@ -751,6 +759,17 @@
       cargoInput.dispatchEvent(new Event('change', { bubbles: true }));
       step('editar una celda actualiza el modelo',
         qxData.empleados.find(e => e.nombre === 'ANA PRUEBA UNO').cargo === 'JEFA DE BODEGA');
+
+      /* Bloque B: la ficha con la gestión del trámite y la constancia */
+      $('.qxs tbody tr .qxopen').click();
+      step('la ficha incluye la gestión del trámite',
+        await until(() => /Gestión del trámite/.test($('#view').innerHTML) && !!$('[data-qx="quin-gestion"]')));
+      step('la ficha ofrece emitir la constancia', !!$('[data-a="qxconst"]'));
+      $('[data-a="qxconst"]').click();
+      step('el diálogo de constancia pide los datos de la empresa',
+        await until(() => !!$('#qxc-emp') && !!$('#qxc-rif') && !!$('#qxc-ciudad') &&
+          !!$('#qxc-cargo') && !!$('#qxc-firma')));
+      closeModal();
 
       $('[data-a="qxsheet"][data-s="hoja3"]').click();
       step('la Hoja 3 pinta sus columnas de RRHH',

@@ -384,6 +384,7 @@ img.pvsp{object-fit:contain}
 .qxdep th.n,.qxdep td.n{text-align:right;font-variant-numeric:tabular-nums}
 .qxdep tbody tr:hover td{background:var(--ac2)}
 .qxdep tr.tot td{font-weight:800;background:var(--bg)}
+.qxdep tr.vacio td{color:var(--mu);opacity:.65}
 .qxdep tbody tr:last-child td{border-bottom:0}
 
 /* --- Detalles generales --- */

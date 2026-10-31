@@ -741,6 +741,15 @@
         (($('#view').innerHTML.match(/<td><b>[A-Z][a-z]+ \d{4}<\/b><\/td>/g) || []).length));
       step('hay botón para exportar el calendario', !!$('[data-a="qxcalxlsx"]'));
 
+      /* Bloque D: historial de cambios (auditoría) */
+      step('el Panel RRHH ofrece el historial de cambios', !!$('[data-a="qxhist"]'));
+      $('[data-a="qxhist"]').click();
+      step('el historial se abre y lista movimientos',
+        await until(() => !!$('.md') && /Historial de cambios/.test($('.md').innerHTML) &&
+          /Edición|Trámite|Alta/.test($('.md').innerHTML)));
+      step('el historial deja vaciarlo', !!$('[data-a="qxhistclear"]'));
+      closeModal();
+
       $('[data-a="qxsheet"][data-s="hoja1"]').click();
       step('la Hoja 1 pinta la tabla editable',
         await until(() => !!$('.qxgrid table.qxs') && $$('.qxs tbody tr').length === 2));
@@ -795,6 +804,13 @@
       step('el diálogo de constancia pide los datos de la empresa',
         await until(() => !!$('#qxc-emp') && !!$('#qxc-rif') && !!$('#qxc-ciudad') &&
           !!$('#qxc-cargo') && !!$('#qxc-firma')));
+      closeModal();
+
+      /* Bloque D: comprobantes del quinquenio enlazados a la bóveda */
+      step('la ficha ofrece adjuntar comprobantes', !!$('[data-a="qxcomp"]'));
+      $('[data-a="qxcomp"]').click();
+      step('el diálogo de comprobantes deja adjuntar un archivo',
+        await until(() => !!$('#qxcomp-file') && !!$('[data-a="qxcompadd"]')));
       closeModal();
 
       $('[data-a="qxsheet"][data-s="hoja3"]').click();

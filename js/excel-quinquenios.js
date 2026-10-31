@@ -57,6 +57,48 @@ const QX_GESTION_OPTS = ['Pendiente', 'En proceso', 'Aprobado', 'Pagado', 'Recha
 const QX_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+/** Máximo de entradas del historial de cambios (se conservan las más nuevas). */
+const QX_HIST_MAX = 500;
+
+/**
+ * Anota un cambio en el historial de auditoría de la base.
+ * @param {string} accion  qué se hizo («Edición», «Trámite», «Alta»…)
+ * @param {string} detalle sobre quién y qué
+ */
+function qxHist(accion, detalle) {
+  if (!qxData) return;
+  if (!Array.isArray(qxData.hist)) qxData.hist = [];
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  qxData.hist.unshift({
+    f: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()),
+    a: String(accion || ''),
+    d: String(detalle || '')
+  });
+  if (qxData.hist.length > QX_HIST_MAX) qxData.hist.length = QX_HIST_MAX;
+}
+
+/** Historial de cambios de la base (lo más nuevo primero). */
+const qxHistorial = () => ((qxData && qxData.hist) || []).slice();
+
+/** Nombre legible de cada campo editable (para el historial de cambios). */
+const QX_FIELD_LABEL = {
+  nombre: 'Nombre completo', fecha: 'Fecha de ingreso', cargo: 'Cargo',
+  'quin-estado': 'Estado del quinquenio', 'quin-periodo': 'Periodo del quinquenio',
+  'quin-visado': 'Visado del quinquenio', 'quin-gestion': 'Estado del trámite',
+  'quin-fechag': 'Fecha de gestión', 'quin-resp': 'Responsable', 'quin-nota': 'Nota',
+  'adel-detalle': 'Detalle', 'adel-periodo': 'Periodo',
+  'adel-anios': 'Años', 'adel-visado': 'Visado'
+};
+
+/** Etiqueta completa de un campo editado, indicando quinquenio y adelanto. */
+function qxFieldLabel(t, i, j) {
+  const base = QX_FIELD_LABEL[t] || t;
+  if (/^quin-/.test(t) && i >= 0) return QX_QUIN_LABELS[i] + ' · ' + base;
+  if (/^adel-/.test(t) && i >= 0 && j >= 0) return QX_QUIN_LABELS[i] + ' · ' + QX_ADEL_LABELS[j] + ' · ' + base;
+  return base;
+}
+
 /* --------------------------- Utilidades --------------------------------- */
 
 /** Minúsculas sin acentos (para comparar nombres como en el buscador). */
@@ -76,7 +118,7 @@ function qxEmptyEmpleado(nombre) {
     nombre: String(nombre || '').trim(),
     fechaIngreso: '',
     cargo: '',
-    quinquenios: [0, 1, 2].map(() => ({ estado: '', periodo: '', visado: '', gestion: '', fechaGestion: '', responsable: '', nota: '' })),
+    quinquenios: [0, 1, 2].map(() => ({ estado: '', periodo: '', visado: '', gestion: '', fechaGestion: '', responsable: '', nota: '', comprobantes: [] })),
     adelantos: [0, 1, 2].map(() => [0, 1, 2, 3].map(() => ({ detalle: '', periodo: '', anios: '', visado: '' })))
   };
   QX_HOJA3_KEYS.forEach(k => { e[k] = ''; });
@@ -88,7 +130,7 @@ function qxFixEmpleado(e) {
   const base = qxEmptyEmpleado(e && e.nombre);
   const out = Object.assign(base, e || {});
   out.id = out.id || qxSlug(out.nombre);
-  out.quinquenios = [0, 1, 2].map(i => Object.assign({ estado: '', periodo: '', visado: '', gestion: '', fechaGestion: '', responsable: '', nota: '' }, (e && e.quinquenios && e.quinquenios[i]) || {}));
+  out.quinquenios = [0, 1, 2].map(i => Object.assign({ estado: '', periodo: '', visado: '', gestion: '', fechaGestion: '', responsable: '', nota: '', comprobantes: [] }, (e && e.quinquenios && e.quinquenios[i]) || {}));
   out.adelantos = [0, 1, 2].map(i => [0, 1, 2, 3].map(j => Object.assign({ detalle: '', periodo: '', anios: '', visado: '' }, (e && e.adelantos && e.adelantos[i] && e.adelantos[i][j]) || {})));
   QX_HOJA3_KEYS.forEach(k => { if (out[k] == null) out[k] = ''; });
   return out;
@@ -547,10 +589,23 @@ function qxAnalizaVenc(meses) {
   const proximos = [], pendientes = [], revisar = [];
   let conFecha = 0;
 
+  /* N.º de personal repetidos: se cuentan una sola vez (O(n) en vez de O(n²)). */
+  const cedCount = {};
+  emps.forEach(x => {
+    const c = String(x.numPersona || '').trim();
+    if (c) cedCount[c] = (cedCount[c] || 0) + 1;
+  });
+
   for (const e of emps) {
     /* Adelantos con datos pero sin detalle: se revisa siempre, tenga o no fecha de ingreso */
     const ad = (e.adelantos || []).reduce((a, b) => a + b.filter(x => (x.anios || x.periodo) && !x.detalle).length, 0);
     if (ad) revisar.push({ e, texto: ad + ' adelanto(s) sin detalle' });
+
+    /* N.º de personal / cédula repetidos (se marca en cada implicado) */
+    const ced = String(e.numPersona || '').trim();
+    if (ced && cedCount[ced] > 1) {
+      revisar.push({ e, texto: 'N.º de personal repetido: ' + ced + ' (' + cedCount[ced] + ' trabajadores)' });
+    }
 
     if (!e.fechaIngreso) { revisar.push({ e, texto: 'Sin fecha de ingreso' }); continue; }
     conFecha++;
@@ -749,6 +804,7 @@ function qxRenderVenc() {
       <span class="mu">Vencimientos de los próximos:</span>
       ${mesBtn(3)}${mesBtn(6)}${mesBtn(12)}
       <span class="sp"></span>
+      <button class="btn" data-a="qxhist">${ic('clock')}Historial</button>
       <button class="btn" data-a="qxcalxlsx">${ic('dl')}Exportar calendario</button>
       <button class="btn" data-a="qxvencprint">${ic('pr')}Imprimir panel</button>
     </div>
@@ -870,6 +926,8 @@ async function qxGestionSave(id, i) {
   }
   /* Si se marca CUMPLE y nadie puso estado de trámite, se da por aprobado. */
   if (q.estado === 'CUMPLE' && !q.gestion) q.gestion = 'Aprobado';
+  qxHist('Trámite', (e.nombre || 'sin nombre') + ' · ' + QX_QUIN_LABELS[i] + ': ' +
+    (q.gestion || 'sin estado') + (q.estado ? ' · ' + q.estado : ''));
   await qxPersist();
   closeModal();
   qxBadgeN = -1;             // fuerza el recálculo del aviso del menú
@@ -912,7 +970,6 @@ async function qxConstanciaGen(id, i) {
   const doc = qxConstanciaPDF(e, i, qxData.empresa);
   if (doc) qxOpenPrint(doc);
 }
-
 /** Arma el PDF de la constancia de quinquenio (documento para el trabajador). */
 function qxConstanciaPDF(e, i, emp) {
   const { jsPDF } = window.jspdf || {};
@@ -979,6 +1036,109 @@ function qxConstanciaPDF(e, i, emp) {
   doc.text('Trabajador(a)', W - M - 68, y + 10);
 
   return doc;
+}
+
+/* -------------------- Historial de cambios (auditoría) ------------------ */
+
+/** Diálogo con el historial de cambios de la base. */
+function qxHistDialog() {
+  const h = qxHistorial();
+  const filas = h.slice(0, 200).map(x => `<div class="row" style="margin:0;box-shadow:none;border-radius:0">
+      <div class="l mu" style="width:128px;flex:none">${esc(x.f)}</div>
+      <div class="v"><b>${esc(x.a)}</b> · ${esc(x.d)}</div>
+    </div>`).join('');
+  openModal(`<h2>Historial de cambios</h2>
+    <div class="mu" style="margin-bottom:12px">${h.length} movimiento${h.length === 1 ? '' : 's'} · se guardan cifrados con la base (se conservan los últimos ${QX_HIST_MAX}).</div>
+    ${h.length
+      ? '<div style="max-height:52vh;overflow:auto;border:1px solid var(--bd);border-radius:12px">' + filas +
+        (h.length > 200 ? '<div class="mu" style="padding:8px 12px">… y ' + (h.length - 200) + ' más.</div>' : '') + '</div>'
+      : '<div class="mu">Todavía no hay movimientos registrados.</div>'}
+    <div class="fx">
+      ${h.length ? '<button class="btn dg" data-a="qxhistclear">Vaciar historial</button>' : ''}
+      <button class="btn p" data-a="close">Cerrar</button></div>`);
+}
+
+/** Vacía el historial de cambios (no toca la base de trabajadores). */
+async function qxHistClear() {
+  const ok = await confirmDialog('Vaciar historial',
+    'Se borrarán todos los movimientos registrados. La base de trabajadores no se toca.', 'Vaciar');
+  if (!ok) return;
+  qxData.hist = [];
+  await qxPersist();
+  closeModal();
+  renderQx();
+  toast('Historial vaciado');
+}
+
+/* ----------------- Comprobantes del quinquenio (bóveda) ----------------- */
+
+/** Comprobantes enlazados a un quinquenio que todavía existen en la bóveda. */
+const qxComps = q => ((q && q.comprobantes) || []).filter(c => docs.some(d => d.id === c.id));
+
+/** Diálogo para ver y adjuntar los comprobantes de un quinquenio. */
+function qxComprobanteDialog(id, i) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e || !e.quinquenios[i]) return;
+  const lista = qxComps(e.quinquenios[i]);
+  openModal(`<h2>Comprobantes · ${QX_QUIN_LABELS[i]}</h2>
+    <div class="mu" style="margin-bottom:12px">${esc(e.nombre)}</div>
+    ${lista.length
+      ? '<div style="border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:12px">' +
+        lista.map(c => `<div class="row2" style="padding-left:12px">
+          <span class="tile" style="background:#455a64">${ic('file')}</span>
+          <span class="nm"><b>${esc(c.name)}</b><span>${esc(c.f)} · ${esc(fmt(c.size || 0))}</span></span>
+          <button class="btn qxgbtn" data-a="open" data-id="${esc(c.id)}">${ic('eye')}Abrir</button>
+          <button class="btn qxgbtn dg" data-a="qxcompdel" data-id="${esc(id)}" data-i="${i}" data-doc="${esc(c.id)}" title="Quitarlo de la ficha (el archivo sigue en la bóveda)">×</button>
+        </div>`).join('') + '</div>'
+      : '<div class="mu" style="margin-bottom:12px">Todavía no hay comprobantes enlazados.</div>'}
+    <div class="f"><label>Añadir comprobante (se guarda cifrado en tu bóveda)</label>
+      <input type="file" id="qxcomp-file"></div>
+    <div class="fx"><button class="btn" data-a="close">Cerrar</button>
+      <button class="btn p" data-a="qxcompadd" data-id="${esc(id)}" data-i="${i}">${ic('up')}Adjuntar</button></div>`);
+}
+
+/** Guarda el comprobante en la bóveda y lo enlaza al quinquenio. */
+async function qxComprobanteAdd(id, i) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  const inp = document.getElementById('qxcomp-file');
+  const f = inp && inp.files && inp.files[0];
+  if (!e || !e.quinquenios[i]) return;
+  if (!f) return toast('Elige un archivo');
+
+  const d = {
+    id: 'qxc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    date: Date.now(),
+    name: baseName(f.name),
+    cat: 'Comprobantes',
+    notes: 'Comprobante de ' + e.nombre + ' · ' + QX_QUIN_LABELS[i],
+    file: f.name,
+    type: f.type || 'application/octet-stream',
+    _b: f
+  };
+  await saveDoc(d, key, true);
+  docs.push(d);
+
+  const q = e.quinquenios[i];
+  if (!Array.isArray(q.comprobantes)) q.comprobantes = [];
+  q.comprobantes.push({ id: d.id, name: d.name, f: new Date().toISOString().slice(0, 10), size: f.size || 0 });
+  qxHist('Comprobante', e.nombre + ' · ' + QX_QUIN_LABELS[i] + ' · ' + f.name);
+  await qxPersist();
+  closeModal();
+  renderQxFicha(id, qxView.from);
+  toast('Comprobante guardado en tu bóveda ✅');
+}
+
+/** Quita un comprobante de la ficha (el archivo permanece en la bóveda). */
+async function qxComprobanteDel(id, i, docId) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e || !e.quinquenios[i]) return;
+  const q = e.quinquenios[i];
+  q.comprobantes = ((q.comprobantes) || []).filter(c => c.id !== docId);
+  qxHist('Comprobante quitado', e.nombre + ' · ' + QX_QUIN_LABELS[i]);
+  await qxPersist();
+  closeModal();
+  renderQxFicha(id, qxView.from);
+  toast('Quitado de la ficha (sigue en «Mi bóveda»)');
 }
 
 /** Vista principal «Quin/Adel»: pestañas MACRO · Hoja 1 · Hoja 3. */
@@ -1401,6 +1561,7 @@ async function qxAddWorkerConfirm() {
   e.cargo = cargo.trim();
   qxData.empleados.push(e);
   qxData.empleados.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  qxHist('Alta', e.nombre + (e.fechaIngreso ? ' · ing. ' + qxFmtCorto(e.fechaIngreso) : ''));
   await qxPersist();
   closeModal();
   renderQx();
@@ -1414,6 +1575,7 @@ async function qxDeleteWorker(id) {
   const ok = await confirmDialog('Eliminar trabajador', 'Se eliminará «' + e.nombre + '» de la base.', 'Eliminar');
   if (!ok) return;
   qxData.empleados = qxData.empleados.filter(x => x.id !== id);
+  qxHist('Baja', e.nombre);
   await qxPersist();
   renderQx();
   toast('Trabajador eliminado');
@@ -1529,13 +1691,17 @@ async function renderQxFicha(id, from) {
   /* Tabla 3: estado del trámite de cada quinquenio (flujo de trabajo de RRHH). */
   const filasGestion = QX_QUIN_LABELS.map((lab, i) => {
     const q = e.quinquenios[i];
+    const nComp = qxComps(q).length;
     return `<tr>
       <td><b>${lab}</b></td>
       <td><select class="${qxGestionCls(q.gestion)}" data-qx="quin-gestion" data-i="${i}">${qxSelOpts(QX_GESTION_OPTS, q.gestion, '—')}</select></td>
       <td><input type="date" data-qx="quin-fechag" data-i="${i}" value="${esc(q.fechaGestion)}"></td>
       <td><input type="text" data-qx="quin-resp" data-i="${i}" value="${esc(q.responsable)}" placeholder="Quién lo tramita"></td>
       <td><input type="text" data-qx="quin-nota" data-i="${i}" value="${esc(q.nota)}" placeholder="Observaciones"></td>
-      <td><button class="btn qxgbtn" data-a="qxconst" data-id="${esc(e.id)}" data-i="${i}" title="Emitir la constancia de quinquenio">${ic('pr')}Constancia</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn qxgbtn" data-a="qxconst" data-id="${esc(e.id)}" data-i="${i}" title="Emitir la constancia de quinquenio">${ic('pr')}Constancia</button>
+        <button class="btn qxgbtn" data-a="qxcomp" data-id="${esc(e.id)}" data-i="${i}" title="Comprobantes del quinquenio">${ic('file')}Comprobantes${nComp ? ' (' + nComp + ')' : ''}</button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -1612,6 +1778,7 @@ function qxApplyEdit(e, el) {
   else if (t === 'adel-anios') e.adelantos[i][j].anios = val;
   else if (t === 'adel-visado') e.adelantos[i][j].visado = qxVisado(val);
   else if (QX_HOJA3_KEYS.indexOf(t) >= 0) e[t] = val;   // campos de la Hoja3
+  qxHist('Edición', (e.nombre || 'sin nombre') + ' · ' + qxFieldLabel(t, i, j) + ': ' + (val || '(vacío)'));
   qxScheduleSave();
 }
 
@@ -1910,6 +2077,12 @@ const QX_ACTIONS = {
   qxconst: el => qxConstanciaDialog(el.dataset.id, +el.dataset.i),
   qxconstgen: el => qxConstanciaGen(el.dataset.id, +el.dataset.i),
   qxcalxlsx: () => qxCalExportXlsx(),
+  /* Historial de cambios y comprobantes */
+  qxhist: () => qxHistDialog(),
+  qxhistclear: () => qxHistClear(),
+  qxcomp: el => qxComprobanteDialog(el.dataset.id, +el.dataset.i),
+  qxcompadd: el => qxComprobanteAdd(el.dataset.id, +el.dataset.i),
+  qxcompdel: el => qxComprobanteDel(el.dataset.id, +el.dataset.i, el.dataset.doc),
   qxexport: async () => {
     if (!qxData) return toast('No hay base para exportar');
     download(new Blob([JSON.stringify(qxData, null, 1)], { type: 'application/json' }),

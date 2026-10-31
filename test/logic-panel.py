@@ -41,6 +41,10 @@ var __saved = 0;
 var __rendered = 0;
 function openModal(html){ __modal = html; }
 function closeModal(){}
+function setTimeout(){ return 0; }
+function clearTimeout(){}
+function fmt(n){ return (n || 0) + ' B'; }
+function baseName(s){ return String(s || '').replace(/\.[^.]+$/, ''); }
 var document = {
   visibilityState: 'visible',
   querySelectorAll: function(){ return []; },
@@ -355,6 +359,104 @@ ok('el encabezado ordenado se marca con flecha', (function () {
 ok('las acciones de orden y filtros existen',
   typeof QX_ACTIONS.qxsort === 'function' && typeof QX_ACTIONS.qxfiltros === 'function');
 qxSheet = 'macro';
+
+/* ---------- Bloque D: historial, comprobantes y cédulas repetidas ---------- */
+qxData = { v: 1, origen: 'test', empleados: [
+  emp('d1', 'ANA DUPLICADA', 'Nomina', '2015-03-01'),
+  emp('d2', 'BETO DUPLICADO', 'Nomina', '2016-03-01')
+]};
+qxData.empleados[0].numPersona = 'B001';
+qxData.empleados[1].numPersona = 'B001';
+
+var rD = qxAnalizaVenc(6);
+ok('las cédulas repetidas se detectan en los dos implicados',
+  rD.revisar.filter(function (x) { return /N\.º de personal repetido: B001/.test(x.texto); }).length === 2,
+  rD.revisar.length);
+ok('el aviso indica cuántos comparten el número',
+  rD.revisar.some(function (x) { return /\(2 trabajadores\)/.test(x.texto); }));
+ok('una cédula única no se marca', (function () {
+  qxData.empleados[1].numPersona = 'B002';
+  var n = qxAnalizaVenc(6).revisar.filter(function (x) { return /repetido/.test(x.texto); }).length;
+  qxData.empleados[1].numPersona = 'B001';
+  return n === 0;
+})());
+ok('sin número de personal no se marca nada', (function () {
+  var a = qxData.empleados[0].numPersona, b = qxData.empleados[1].numPersona;
+  qxData.empleados[0].numPersona = ''; qxData.empleados[1].numPersona = '';
+  var n = qxAnalizaVenc(6).revisar.filter(function (x) { return /repetido/.test(x.texto); }).length;
+  qxData.empleados[0].numPersona = a; qxData.empleados[1].numPersona = b;
+  return n === 0;
+})());
+
+/* Historial de cambios */
+qxData.hist = undefined;
+qxHist('Prueba', 'algo');
+ok('el historial se crea solo', Array.isArray(qxData.hist) && qxData.hist.length === 1);
+ok('la entrada guarda fecha, acción y detalle',
+  /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(qxData.hist[0].f) &&
+  qxData.hist[0].a === 'Prueba' && qxData.hist[0].d === 'algo', qxData.hist[0].f);
+qxHist('Segunda', 'x');
+ok('lo más nuevo va primero', qxData.hist[0].a === 'Segunda');
+ok('el historial tiene tope', (function () {
+  for (var k = 0; k < QX_HIST_MAX + 40; k++) qxHist('Bulk', String(k));
+  return qxData.hist.length === QX_HIST_MAX;
+})(), qxData.hist.length);
+ok('qxHistorial devuelve una copia, no el original', (function () {
+  var a = qxHistorial(); a.push({ a: 'intruso' });
+  return qxHistorial().length === QX_HIST_MAX;
+})());
+ok('sin base, qxHist no revienta', (function () {
+  var g = qxData; qxData = null;
+  var r = (function () { try { qxHist('x', 'y'); return true; } catch (e) { return false; } })();
+  qxData = g; return r;
+})());
+
+/* Las ediciones quedan anotadas */
+qxData.hist = [];
+qxApplyEdit(qxData.empleados[0],
+  { dataset: { qx: 'quin-resp', i: '0' }, value: 'Maria', className: '' });
+ok('editar un campo queda en el historial',
+  qxData.hist.length === 1 && qxData.hist[0].a === 'Edición' &&
+  /ANA DUPLICADA/.test(qxData.hist[0].d) && /Responsable/.test(qxData.hist[0].d) &&
+  /Maria/.test(qxData.hist[0].d), qxData.hist.length ? qxData.hist[0].d : '');
+ok('la etiqueta del campo dice qué quinquenio',
+  /1er Quinquenio · Responsable/.test(qxFieldLabel('quin-resp', 0, NaN)), qxFieldLabel('quin-resp', 0, NaN));
+ok('la etiqueta del campo dice qué adelanto',
+  /2do Quinquenio · Primer Adelanto · Años/.test(qxFieldLabel('adel-anios', 1, 0)), qxFieldLabel('adel-anios', 1, 0));
+ok('el historial guarda los cambios del trámite', (function () {
+  qxData.hist = [];
+  __els['qxg-gestion'] = { value: 'Aprobado' };
+  __els['qxg-fecha'] = { value: '' };
+  __els['qxg-resp'] = { value: '' };
+  __els['qxg-nota'] = { value: '' };
+  __els['qxg-cumple'] = { checked: false };
+  qxGestionSave('d1', 0);
+  return qxData.hist.length === 1 && qxData.hist[0].a === 'Trámite';
+})(), qxData.hist.length ? qxData.hist[0].a : '');
+qxData.hist = [];
+
+/* Comprobantes enlazados a la bóveda */
+docs = [{ id: 'doc1', name: 'comprobante.pdf', cat: 'Comprobantes' }];
+qxData.empleados[0].quinquenios[0].comprobantes = [
+  { id: 'doc1', name: 'comprobante.pdf', f: '2026-01-01', size: 1024 },
+  { id: 'fantasma', name: 'borrado.pdf', f: '2026-01-01', size: 1 }
+];
+ok('los comprobantes borrados de la bóveda no se listan',
+  qxComps(qxData.empleados[0].quinquenios[0]).length === 1,
+  qxComps(qxData.empleados[0].quinquenios[0]).length);
+ok('un quinquenio sin comprobantes no revienta', qxComps(undefined).length === 0 && qxComps({}).length === 0);
+
+qxComprobanteDialog('d1', 0);
+ok('el diálogo lista los comprobantes que existen', /comprobante\.pdf/.test(__modal));
+ok('el diálogo no lista los huérfanos', !/borrado\.pdf/.test(__modal));
+ok('el diálogo permite adjuntar', /id="qxcomp-file"/.test(__modal) && /data-a="qxcompadd"/.test(__modal));
+ok('el diálogo abre con el visor de la bóveda', /data-a="open" data-id="doc1"/.test(__modal));
+ok('el diálogo permite quitar de la ficha', /data-a="qxcompdel"/.test(__modal));
+
+ok('las acciones del bloque D existen',
+  typeof QX_ACTIONS.qxhist === 'function' && typeof QX_ACTIONS.qxhistclear === 'function' &&
+  typeof QX_ACTIONS.qxcomp === 'function' && typeof QX_ACTIONS.qxcompadd === 'function' &&
+  typeof QX_ACTIONS.qxcompdel === 'function');
 
 JSON.stringify(out);
 """

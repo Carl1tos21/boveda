@@ -145,15 +145,17 @@ ok('el panel lista a ANA en pendientes', /ANA VENCIDA/.test(html));
 ok('el panel avisa de DIEGO', /Sin fecha de ingreso/.test(html));
 ok('el filtro de plazo pinta 3/6/12 meses',
   /3 meses/.test(html) && /6 meses/.test(html) && /12 meses/.test(html));
-ok('6 meses viene marcado por defecto', /class="qxps on" data-a="qxvencmes" data-n="6"/.test(html));
+ok('6 meses viene marcado por defecto',
+  /class="[^"]*on[^"]*" data-a="qxvencmes" data-n="6"/.test(html));
 ok('hay boton de imprimir panel', /data-a="qxvencprint"/.test(html));
-ok('las 4 pestanas estan', (html.match(/data-a="qxsheet"/g) || []).length === 4,
-  (html.match(/data-a="qxsheet"/g) || []).length);
+ok('las 4 pestanas estan', (html.match(/class="qxtab[ "]/g) || []).length === 4,
+  (html.match(/class="qxtab[ "]/g) || []).length);
 ok('cada fila enlaza a la ficha', /data-a="qxficha" data-id="b" data-from="venc"/.test(html));
 
 qxVencMeses = 3;
 qxRenderVenc();
-ok('el plazo de 3 meses queda marcado', /class="qxps on" data-a="qxvencmes" data-n="3"/.test(__view.innerHTML));
+ok('el plazo de 3 meses queda marcado',
+  /class="[^"]*on[^"]*" data-a="qxvencmes" data-n="3"/.test(__view.innerHTML));
 qxVencMeses = 6;
 
 ok('la accion qxvencmes existe', typeof QX_ACTIONS.qxvencmes === 'function');
@@ -597,6 +599,39 @@ ok('las acciones nuevas existen',
   typeof QX_ACTIONS.qxselall === 'function' && typeof QX_ACTIONS.qxselcumple === 'function');
 qxSheet = 'macro';
 qxSel = {};
+
+/* ---------- Aspecto de Excel (cinta, cuadrícula, pestañas, estado) ---------- */
+ok('qxColLetter numera como Excel',
+  qxColLetter(0) === 'A' && qxColLetter(25) === 'Z' &&
+  qxColLetter(26) === 'AA' && qxColLetter(27) === 'AB',
+  qxColLetter(0) + qxColLetter(25) + qxColLetter(26));
+ok('la cinta de opciones se pinta con pestañas y grupos', (function () {
+  var h = qxRibbonHTML([{ lab: 'Prueba', botones: [{ a: 'xx', ic: 'ok', txt: 'Hola' }] }], 'Datos');
+  return /class="qxribbon"/.test(h) && /qxrb-body/.test(h) && /data-a="xx"/.test(h) &&
+    /Hola/.test(h) && /qxrbt on">Datos/.test(h) && /qxrb-lab">Prueba/.test(h);
+})());
+ok('la cinta admite entradas (filtros) dentro', (function () {
+  var h = qxRibbonHTML([{ lab: 'Filtrar', html: '<input id="zz">' }], 'Inicio');
+  return /<input id="zz">/.test(h);
+})());
+ok('la barra de estado se pinta', /class="qxstatusbar"/.test(qxStatusHTML()) && /cifrado/.test(qxStatusHTML()));
+
+/* La cuadrícula lleva letras de columna y números de fila de Excel */
+qxSheet = 'hoja1';
+qxPage = 0; qxPageSize = 50; qxSort = { col: -1, dir: 1 };
+qxFilter = ''; qxFDepto = ''; qxFQuin = ''; qxFGest = '';
+var grid2 = { innerHTML: '' };
+__els['qxgridwrap'] = grid2;
+qxGridRefresh();
+var hXl = grid2.innerHTML;
+ok('la cuadricula pone las letras de columna',
+  /class="qxl">A</.test(hXl) && /class="qxl">B</.test(hXl) && /class="qxl">C</.test(hXl));
+ok('las filas empiezan en 2, como en Excel',
+  /data-row="2"/.test(hXl) && />2<\/button>/.test(hXl) && /data-row="3"/.test(hXl));
+ok('las celdas siguen llevando data-h para el movil', /<td data-h="NOMBRE COMPLETO"/.test(hXl));
+ok('la tabla conserva las 27 columnas', (hXl.match(/<th[ >]/g) || []).length === 27,
+  (hXl.match(/<th[ >]/g) || []).length);
+qxSheet = 'macro';
 
 JSON.stringify(out);
 """

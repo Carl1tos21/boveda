@@ -26,6 +26,7 @@ let qxSheet = 'macro';   // hoja activa: 'macro' | 'hoja1' | 'hoja3'
 let qxPage = 0;          // página actual de la hoja de cálculo
 let qxPageSize = 50;     // filas por página
 let qxFilter = '';       // filtro de la hoja de cálculo
+let qxVencMeses = 6;     // plazo del panel de RRHH (3, 6 o 12 meses)
 
 const QX_QUIN_LABELS = ['1er Quinquenio', '2do Quinquenio', '3er Quinquenio'];
 const QX_ADEL_LABELS = ['Primer Adelanto', 'Segundo Adelanto', 'Tercer Adelanto', 'Cuarto Adelanto'];
@@ -499,11 +500,174 @@ function qxStats() {
   return { emps, q, noq, conAdel };
 }
 
+/* ============== Panel de RRHH: vencimientos y pendientes =============== */
+
+/** Fecha (ISO) en la que se cumple el quinquenio i (0, 1, 2) del empleado. */
+const qxFechaQuin = (e, i) => qxMasAnios(e && e.fechaIngreso, (i + 1) * 5);
+
+/** Días que faltan para una fecha ISO (negativo si ya pasó). */
+function qxDiasPara(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return null;
+  const f = new Date(+m[1], +m[2] - 1, +m[3]);
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((f - hoy) / 86400000);
+}
+
+/**
+ * Analiza la base entera para el panel de RRHH.
+ *   proximos   -> quinquenios que se cumplen dentro del plazo elegido
+ *   pendientes -> quinquenios cuya fecha YA pasó y siguen sin gestionar
+ *   revisar    -> datos incompletos o incoherentes
+ */
+function qxAnalizaVenc(meses) {
+  const emps = (qxData && qxData.empleados) || [];
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const limite = new Date(hoy.getFullYear(), hoy.getMonth() + (meses || 6), hoy.getDate());
+
+  const proximos = [], pendientes = [], revisar = [];
+  let conFecha = 0;
+
+  for (const e of emps) {
+    if (!e.fechaIngreso) { revisar.push({ e, texto: 'Sin fecha de ingreso' }); continue; }
+    conFecha++;
+
+    for (let i = 0; i < 3; i++) {
+      const iso = qxFechaQuin(e, i);
+      const dias = qxDiasPara(iso);
+      if (dias === null) { revisar.push({ e, texto: 'Fecha de ingreso no válida' }); break; }
+      const f = new Date(iso + 'T00:00:00');
+      const q = e.quinquenios[i] || {};
+
+      if (q.estado === 'CUMPLE') {
+        if (dias > 0) revisar.push({ e, texto: QX_QUIN_LABELS[i] + ': CUMPLE marcado y aún faltan ' + dias + ' días' });
+        continue;
+      }
+      if (f >= hoy && f <= limite) proximos.push({ e, i, iso, dias });
+      else if (f < hoy) pendientes.push({ e, i, iso, dias: -dias });
+    }
+
+    /* Adelantos con datos pero sin detalle */
+    const ad = e.adelantos.reduce((a, b) => a + b.filter(x => (x.anios || x.periodo) && !x.detalle).length, 0);
+    if (ad) revisar.push({ e, texto: ad + ' adelanto(s) sin detalle' });
+  }
+
+  proximos.sort((a, b) => a.dias - b.dias);        // los más urgentes primero
+  pendientes.sort((a, b) => b.dias - a.dias);      // los más antiguos primero
+  return { proximos, pendientes, revisar, total: emps.length, conFecha, meses: meses || 6 };
+}
+
+/** Pinta el «Panel de RRHH»: vencimientos, pendientes y datos a revisar. */
+function qxRenderVenc() {
+  const v = $('#view');
+  const r = qxAnalizaVenc(qxVencMeses);
+
+  const fila = (e, titulo, detalle) => `
+    <div class="row2" data-a="qxficha" data-id="${esc(e.id)}" data-from="venc" style="padding-left:14px">
+      <span class="tile" style="background:${tileColor(e.departamento || 'General')}">${ic('id')}</span>
+      <span class="nm">
+        <span class="nm-top"><b>${esc(e.nombre)}</b></span>
+        <span class="nm-sub">${esc(e.cargo || 'Sin cargo')}${e.departamento ? ' · ' + esc(e.departamento) : ''}</span>
+      </span>
+      <span class="hide-m" style="text-align:right;margin-right:10px;flex:none">
+        <b>${esc(titulo)}</b><br><span class="mu">${esc(detalle)}</span>
+      </span>
+      ${ic('chevron')}
+    </div>`;
+
+  const mesBtn = n => `<button class="qxps${qxVencMeses === n ? ' on' : ''}" data-a="qxvencmes" data-n="${n}">${n} meses</button>`;
+  const bloque = (titulo, lista, vacio) => `
+    <div class="pn">
+      <h2 style="font-size:15px;margin:0 0 8px">${titulo}</h2>
+      ${lista ? '<div class="tree">' + lista + '</div>' : '<div class="mu">' + vacio + '</div>'}
+    </div>`;
+
+  v.innerHTML = `
+    <div class="vhead"><h1>Panel de RRHH</h1></div>
+    ${qxSheetTabs()}
+    <div class="mu" style="margin-bottom:12px">${r.total} empleado(s) en la base · ${r.conFecha} con fecha de ingreso</div>
+
+    <div class="qxtools">
+      <span class="mu">Vencimientos de los próximos:</span>
+      ${mesBtn(3)}${mesBtn(6)}${mesBtn(12)}
+      <span class="sp"></span>
+      <button class="btn" data-a="qxvencprint">${ic('pr')}Imprimir panel</button>
+    </div>
+
+    <div class="qxcards">
+      <div class="qxc amber">
+        <span class="ico">${ic('clock')}</span>
+        <span class="tx"><span class="num">${r.proximos.length}</span>
+        <span class="lab">vencen en los próximos<br>${r.meses} meses</span></span>
+      </div>
+      <div class="qxc teal">
+        <span class="ico">${ic('ok')}</span>
+        <span class="tx"><span class="num">${r.pendientes.length}</span>
+        <span class="lab">ya vencieron y siguen<br>sin gestionar</span></span>
+      </div>
+      <div class="qxc blue">
+        <span class="ico">${ic('help')}</span>
+        <span class="tx"><span class="num">${r.revisar.length}</span>
+        <span class="lab">datos a revisar<br>(incompletos o incoherentes)</span></span>
+      </div>
+    </div>
+
+    ${bloque('⏰ Próximos vencimientos',
+      r.proximos.map(x => fila(x.e, QX_QUIN_LABELS[x.i], qxFmtCorto(x.iso) + ' · en ' + x.dias + ' días')).join(''),
+      'Ningún quinquenio vence en los próximos ' + r.meses + ' meses.')}
+
+    ${bloque('⚠️ Pendientes de gestionar (ya vencieron)',
+      r.pendientes.map(x => fila(x.e, QX_QUIN_LABELS[x.i], qxFmtCorto(x.iso) + ' · hace ' + x.dias + ' días')).join(''),
+      'Todo al día ✅')}
+
+    ${bloque('🔎 Datos a revisar',
+      r.revisar.map(x => fila(x.e, '⚠️ Revisar', x.texto)).join(''),
+      'Los datos están completos ✅')}`;
+}
+
+/** PDF del panel de RRHH (próximos vencimientos, pendientes y revisión). */
+function qxPrintVenc() {
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) return toast('Motor de PDF no disponible');
+  const r = qxAnalizaVenc(qxVencMeses);
+  const doc = new jsPDF();
+  const M = 14;
+  let y = 16;
+
+  doc.setFontSize(14); doc.setFont(undefined, 'bold');
+  doc.text('Panel de RRHH · Quinquenios y Adelantos', M, y); y += 7;
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  doc.text('Generado: ' + new Date().toLocaleDateString('es-VE') + '   ·   Próximos ' + r.meses + ' meses', M, y); y += 10;
+
+  const seccion = (titulo, filas) => {
+    if (y > 265) { doc.addPage(); y = 20; }
+    doc.setFontSize(11); doc.setFont(undefined, 'bold');
+    doc.text(titulo, M, y); y += 6;
+    doc.setFontSize(9); doc.setFont(undefined, 'normal');
+    if (!filas.length) { doc.text('(ninguno)', M + 2, y); y += 6; }
+    filas.forEach(t => {
+      if (y > 282) { doc.addPage(); y = 20; }
+      doc.text(String(t).slice(0, 110), M + 2, y); y += 5;
+    });
+    y += 4;
+  };
+
+  seccion('Proximos vencimientos (' + r.proximos.length + ')',
+    r.proximos.map(x => qxFmtCorto(x.iso) + '  ·  ' + x.e.nombre + '  ·  ' + QX_QUIN_LABELS[x.i] + '  ·  en ' + x.dias + ' dias'));
+  seccion('Pendientes de gestionar (' + r.pendientes.length + ')',
+    r.pendientes.map(x => qxFmtCorto(x.iso) + '  ·  ' + x.e.nombre + '  ·  ' + QX_QUIN_LABELS[x.i] + '  ·  hace ' + x.dias + ' dias'));
+  seccion('Datos a revisar (' + r.revisar.length + ')',
+    r.revisar.map(x => x.e.nombre + '  ·  ' + x.texto));
+
+  qxOpenPrint(doc);
+}
+
 /** Vista principal «Quin/Adel»: pestañas MACRO · Hoja 1 · Hoja 3. */
 async function renderQx() {
   await qxLoad();
   qxCatView = null;
   qxView = { mode: 'home', id: null };
+  if (qxSheet === 'venc') return qxRenderVenc();
   if (qxSheet === 'hoja1' || qxSheet === 'hoja3') return qxRenderSheet(qxSheet);
   return qxRenderMacro();
 }
@@ -642,7 +806,7 @@ async function renderQxList(cat) {
 
 /** Barra de pestañas con las 3 hojas del Excel. */
 function qxSheetTabs() {
-  const tabs = [['macro', 'MACRO'], ['hoja1', 'Hoja 1'], ['hoja3', 'Hoja 3']];
+  const tabs = [['macro', 'MACRO'], ['venc', 'Panel RRHH'], ['hoja1', 'Hoja 1'], ['hoja3', 'Hoja 3']];
   return '<div class="qxtabs">' + tabs.map(t =>
     '<button class="qxtab' + (qxSheet === t[0] ? ' on' : '') + '" data-a="qxsheet" data-s="' + t[0] + '">' + t[1] + '</button>'
   ).join('') + '</div>';
@@ -793,7 +957,7 @@ function qxBindGrid() {
 
 /** Cambia de hoja (pestañas MACRO · Hoja 1 · Hoja 3). */
 function qxSwitchSheet(s) {
-  if (['macro', 'hoja1', 'hoja3'].indexOf(s) < 0) return;
+  if (['macro', 'venc', 'hoja1', 'hoja3'].indexOf(s) < 0) return;
   qxSheet = s; qxPage = 0; qxFilter = '';
   renderQx();
 }
@@ -1259,8 +1423,11 @@ const QX_ACTIONS = {
   },
   qxcat: el => renderQxList(el.dataset.cat),
   qxback: () => {
-    if (qxView.mode === 'ficha' && qxView.from && qxView.from !== 'hoja1' && qxView.from !== 'hoja3') renderQxList(qxView.from);
-    else renderQx();
+    if (qxView.mode !== 'ficha') return renderQx();
+    const f = qxView.from;
+    if (f === 'quinquenios' || f === 'adelantos') return renderQxList(f);
+    if (f === 'venc') { qxSheet = 'venc'; return renderQx(); }
+    renderQx();
   },
   qxficha: el => renderQxFicha(el.dataset.id, el.dataset.from || null),
   qxsearch: () => qxSearchUpdate(),
@@ -1287,6 +1454,9 @@ const QX_ACTIONS = {
   },
   qxprint: el => qxPrintFicha(el.dataset.id),
   qxprintall: () => qxPrintAll(),
+  /* Panel de RRHH */
+  qxvencmes: el => { qxVencMeses = +el.dataset.n || 6; renderQx(); },
+  qxvencprint: () => qxPrintVenc(),
   qxexport: async () => {
     if (!qxData) return toast('No hay base para exportar');
     download(new Blob([JSON.stringify(qxData, null, 1)], { type: 'application/json' }),

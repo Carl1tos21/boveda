@@ -685,9 +685,21 @@
       qxPage = 0; qxFilter = ''; qxPageSize = 50;
 
       view = 'qx'; render();
-      step('la vista Quin/Adel muestra las 3 pestañas',
-        await until(() => $$('.qxtab').length === 3 && /MACRO/.test($('#view').innerHTML) &&
+      step('la vista Quin/Adel muestra las 4 pestañas',
+        await until(() => $$('.qxtab').length === 4 && /MACRO/.test($('#view').innerHTML) &&
+          /Panel RRHH/.test($('#view').innerHTML) &&
           /Hoja 1/.test($('#view').innerHTML) && /Hoja 3/.test($('#view').innerHTML)));
+
+      /* Panel de RRHH: vencimientos, pendientes y datos a revisar */
+      $('[data-a="qxsheet"][data-s="venc"]').click();
+      step('el Panel RRHH muestra sus 3 secciones',
+        await until(() => /Próximos vencimientos/.test($('#view').innerHTML) &&
+          /Pendientes de gestionar/.test($('#view').innerHTML) &&
+          /Datos a revisar/.test($('#view').innerHTML)));
+      step('el Panel RRHH lista al empleado con quinquenio vencido',
+        /ANA PRUEBA UNO/.test($('#view').innerHTML));
+      step('el Panel RRHH avisa del empleado sin fecha de ingreso',
+        /Sin fecha de ingreso/.test($('#view').innerHTML));
 
       $('[data-a="qxsheet"][data-s="hoja1"]').click();
       step('la Hoja 1 pinta la tabla editable',

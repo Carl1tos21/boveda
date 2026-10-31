@@ -45,9 +45,11 @@ function setTimeout(){ return 0; }
 function clearTimeout(){}
 function fmt(n){ return (n || 0) + ' B'; }
 function baseName(s){ return String(s || '').replace(/\.[^.]+$/, ''); }
+function confirmDialog(){ return Promise.resolve(true); }
 var document = {
   visibilityState: 'visible',
   querySelectorAll: function(){ return []; },
+  querySelector: function(){ return null; },
   getElementById: function(id){ return __els[id] || null; },
   createElement: function(){
     return { style: {}, classList: { add: function(){}, remove: function(){} },
@@ -103,7 +105,9 @@ ok('pendientes = 2 (ANA + 2do de CARLA)', r.pendientes.length === 2, r.pendiente
 ok('pendiente mas antiguo primero',
   r.pendientes.length === 2 && r.pendientes[0].dias >= r.pendientes[1].dias,
   r.pendientes.map(function (p) { return p.e.id + ':' + p.dias; }).join(' '));
-ok('revisar = 2 (DIEGO sin fecha + adelanto sin detalle)', r.revisar.length === 2, r.revisar.length);
+ok('revisar incluye a DIEGO sin fecha y el adelanto sin detalle',
+  r.revisar.some(function (x) { return /Sin fecha de ingreso/.test(x.texto); }) &&
+  r.revisar.some(function (x) { return /adelanto\(s\) sin detalle/.test(x.texto); }), r.revisar.length);
 ok('DIEGO marcado sin fecha',
   r.revisar.some(function (x) { return /Sin fecha de ingreso/.test(x.texto); }));
 ok('adelanto sin detalle detectado',
@@ -457,6 +461,142 @@ ok('las acciones del bloque D existen',
   typeof QX_ACTIONS.qxhist === 'function' && typeof QX_ACTIONS.qxhistclear === 'function' &&
   typeof QX_ACTIONS.qxcomp === 'function' && typeof QX_ACTIONS.qxcompadd === 'function' &&
   typeof QX_ACTIONS.qxcompdel === 'function');
+
+/* ---------- Excel real: avance, puesta al día y acciones en lote ---------- */
+qxData = { v: 1, origen: 'test', empleados: [
+  emp('r1', 'ANA ANTIGUA', 'Nomina', '2010-06-15'),
+  emp('r2', 'BETO MEDIO', 'Almacen', '2020-06-15'),
+  emp('r3', 'CARLA NUEVA', 'Nomina', '2026-01-15')
+]};
+qxData.empleados[0].numPersona = 'X1';
+qxData.empleados[1].numPersona = 'X2';
+qxData.empleados[2].numPersona = 'X3';
+qxData.empleados[0].quinquenios[0].estado = 'CUMPLE';
+qxData.empleados[1].quinquenios[0].estado = 'CUMPLE';
+
+var rA = qxAnalizaVenc(6);
+ok('cuenta los quinquenios ya vencidos', rA.vencidos === 4, rA.vencidos);
+ok('cuenta los vencidos ya marcados CUMPLE', rA.marcados === 2, rA.marcados);
+ok('pendientes = vencidos - marcados',
+  rA.pendientes.length === rA.vencidos - rA.marcados, rA.pendientes.length);
+
+var av = qxAvance(6);
+ok('el avance es el % de marcados', av.pct === 50, av.pct);
+ok('el avance cuenta los periodos sin calcular',
+  av.totalQ === 9 && av.conPeriodo === 0, av.conPeriodo + '/' + av.totalQ);
+ok('el avance reparte la antiguedad por tramos',
+  av.ant['5'] === 1 && av.ant['10'] === 0 && av.ant['15'] === 1,
+  JSON.stringify(av.ant));
+
+/* Validacion nueva: el periodo debe cuadrar con la fecha de ingreso */
+qxData.empleados[1].quinquenios[1].periodo = '01/01/2020 - 01/01/2025';
+ok('detecta un periodo que no cuadra con la fecha de ingreso',
+  qxAnalizaVenc(6).revisar.some(function (x) { return x.tipo === 'periodo'; }));
+ok('no marca el periodo correcto', (function () {
+  qxData.empleados[1].quinquenios[1].periodo = qxPeriodoQuin('2020-06-15', 1);
+  var n = qxAnalizaVenc(6).revisar.filter(function (x) { return x.tipo === 'periodo'; }).length;
+  qxData.empleados[1].quinquenios[1].periodo = '';
+  return n === 0;
+})());
+ok('no se mete con los periodos escritos a mano en texto libre', (function () {
+  qxData.empleados[1].quinquenios[1].periodo = 'pendiente por confirmar';
+  var n = qxAnalizaVenc(6).revisar.filter(function (x) { return x.tipo === 'periodo'; }).length;
+  qxData.empleados[1].quinquenios[1].periodo = '';
+  return n === 0;
+})());
+
+/* Validaciones nuevas: datos que faltan (los que tiene el Excel real) */
+qxData.empleados[0].numPersona = '';
+qxData.empleados[0].departamento = '';
+qxData.empleados[0].nombrePuesto = '';
+qxData.empleados[0].codUbicacion = '';
+var rS = qxAnalizaVenc(6);
+ok('avisa de quien no tiene N.º de personal',
+  rS.revisar.some(function (x) { return x.tipo === 'sin-numero'; }));
+ok('avisa de quien no tiene departamento',
+  rS.revisar.some(function (x) { return x.tipo === 'sin-departamento'; }));
+ok('avisa de quien no tiene datos de la Hoja 3',
+  rS.revisar.some(function (x) { return x.tipo === 'sin-hoja3'; }));
+qxData.empleados[0].numPersona = 'X1';
+qxData.empleados[0].departamento = 'Nomina';
+qxData.empleados[0].nombrePuesto = 'JEFA DE BODEGA';
+
+/* Puesta al dia */
+qxData.empleados[2].nombrePuesto = 'OPERARIA';
+qxData.empleados[2].cargo = '';
+qxData.empleados[0].quinquenios[0].visado = 'SI';
+qxData.empleados[0].quinquenios[1].estado = 'CUMPLE ';
+
+var pd = qxPonerAlDiaBase(qxData.empleados);
+ok('la puesta al dia rellena los periodos vacios', pd.periodos === 9, pd.periodos);
+ok('la puesta al dia copia el cargo desde la Hoja 3', pd.cargos === 1, pd.cargos);
+ok('el cargo quedo copiado', qxData.empleados[2].cargo === 'OPERARIA', qxData.empleados[2].cargo);
+ok('la puesta al dia limpia los valores no validos', pd.limpiados === 2, pd.limpiados);
+ok('el visado quedo normalizado (SI -> Sí)',
+  qxData.empleados[0].quinquenios[0].visado === 'Sí', qxData.empleados[0].quinquenios[0].visado);
+ok('el estado con espacios quedo normalizado',
+  qxData.empleados[0].quinquenios[1].estado === 'CUMPLE', qxData.empleados[0].quinquenios[1].estado);
+ok('los periodos quedaron bien calculados',
+  qxData.empleados[1].quinquenios[1].periodo === qxPeriodoQuin('2020-06-15', 1),
+  qxData.empleados[1].quinquenios[1].periodo);
+ok('no pisa un periodo escrito a mano', (function () {
+  var g = qxEmptyEmpleado('ZZ PRUEBA');
+  g.fechaIngreso = '2000-01-01';
+  g.quinquenios[0].periodo = 'MIO';
+  var n = qxPonerAlDiaBase([g]);
+  return n.periodos === 2 && g.quinquenios[0].periodo === 'MIO';
+})());
+
+/* Seleccion en lote */
+qxSel = {};
+ok('sin seleccion el contador es 0', qxSelCount() === 0);
+qxSelToggle('r1|0');
+qxSelToggle('r2|1');
+ok('seleccionar suma al contador', qxSelCount() === 2, qxSelCount());
+qxSelToggle('r1|0');
+ok('volver a pulsar quita la seleccion', qxSelCount() === 1, qxSelCount());
+
+qxData.empleados[0].quinquenios[1].estado = '';
+qxData.empleados[1].quinquenios[0].estado = '';
+qxData.empleados[0].quinquenios[1].gestion = '';
+var nSel = qxSelAplicarBase(['r1|1', 'r2|0'], 'CUMPLE', '');
+ok('marcar CUMPLE en lote afecta a los seleccionados', nSel === 2, nSel);
+ok('el estado quedo en CUMPLE',
+  qxData.empleados[0].quinquenios[1].estado === 'CUMPLE' &&
+  qxData.empleados[1].quinquenios[0].estado === 'CUMPLE');
+ok('y el tramite pasa a Aprobado si estaba vacio',
+  qxData.empleados[0].quinquenios[1].gestion === 'Aprobado',
+  qxData.empleados[0].quinquenios[1].gestion);
+ok('aplicar tramite en lote funciona',
+  qxSelAplicarBase(['r3|0'], '', 'Pagado') === 1 &&
+  qxData.empleados[2].quinquenios[0].gestion === 'Pagado');
+ok('y le pone fecha de gestion', !!qxData.empleados[2].quinquenios[0].fechaGestion,
+  qxData.empleados[2].quinquenios[0].fechaGestion);
+ok('ignora claves que no existen', qxSelAplicarBase(['noexiste|0'], 'CUMPLE', '') === 0);
+
+qxSelAll(true);
+ok('seleccionar todos toma los pendientes',
+  qxSelCount() === qxAnalizaVenc(qxVencMeses).pendientes.length, qxSelCount());
+qxSelAll(false);
+ok('quitar la seleccion la deja vacia', qxSelCount() === 0);
+
+/* El panel pinta el avance y la barra de acciones en lote */
+qxSheet = 'venc';
+qxRenderVenc();
+var hA = __view.innerHTML;
+ok('el panel pinta el avance de la gestion', /Avance de la gestión/.test(hA));
+ok('el panel pinta la barra de progreso', /class="qxbar"/.test(hA));
+ok('el panel pinta los tramos de antiguedad',
+  /con 5\+ años/.test(hA) && /con 15\+ años/.test(hA));
+ok('el panel ofrece poner la base al dia', /data-a="qxpuestaaldia"/.test(hA));
+ok('el panel ofrece acciones en lote',
+  /data-a="qxselcumple"/.test(hA) && /data-a="qxselgestion"/.test(hA));
+ok('el panel pone casillas de seleccion', /data-a="qxsel"/.test(hA));
+ok('las acciones nuevas existen',
+  typeof QX_ACTIONS.qxpuestaaldia === 'function' && typeof QX_ACTIONS.qxsel === 'function' &&
+  typeof QX_ACTIONS.qxselall === 'function' && typeof QX_ACTIONS.qxselcumple === 'function');
+qxSheet = 'macro';
+qxSel = {};
 
 JSON.stringify(out);
 """

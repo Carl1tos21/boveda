@@ -750,6 +750,29 @@
       step('el historial deja vaciarlo', !!$('[data-a="qxhistclear"]'));
       closeModal();
 
+      /* Excel real: avance de la gestión y acciones en lote */
+      step('el Panel RRHH pinta el avance de la gestión',
+        /Avance de la gestión/.test($('#view').innerHTML));
+      step('el avance trae barra de progreso y tramos',
+        !!$('.qxbar') && $$('.qxant').length >= 4, $$('.qxant').length);
+      step('el Panel ofrece poner la base al día', !!$('[data-a="qxpuestaaldia"]'));
+      step('las pendientes traen casilla de selección', !!$('[data-a="qxsel"]'));
+      step('la barra de acciones en lote está',
+        !!$('[data-a="qxselcumple"]') && !!$('#qxselgest') && !!$('[data-a="qxselgestion"]'));
+
+      $('[data-a="qxsel"]').click();
+      step('marcar una casilla cuenta la selección',
+        await until(() => ($('#qxseln') || {}).textContent === '1'),
+        ($('#qxseln') || {}).textContent);
+      step('la casilla queda marcada visualmente', !!$('[data-a="qxsel"].on'));
+      $('[data-a="qxselall"]').click();
+      step('seleccionar todos marca todos los pendientes',
+        await until(() => $$('[data-a="qxsel"].on').length === $$('[data-a="qxsel"]').length),
+        $$('[data-a="qxsel"].on').length + '/' + $$('[data-a="qxsel"]').length);
+      $('[data-a="qxselnone"]').click();
+      step('quitar la selección la deja vacía',
+        await until(() => $$('[data-a="qxsel"].on').length === 0));
+
       $('[data-a="qxsheet"][data-s="hoja1"]').click();
       step('la Hoja 1 pinta la tabla editable',
         await until(() => !!$('.qxgrid table.qxs') && $$('.qxs tbody tr').length === 2));

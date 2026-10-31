@@ -395,6 +395,16 @@ img.pvsp{object-fit:contain}
   .qxs tbody td.qxn:before,.qxs tbody td.qxa:before{display:none}
 }
 
+/* --- Panel RRHH: avance de la gestión y selección en lote --- */
+.qxbar{height:12px;border-radius:8px;background:var(--bd);overflow:hidden}
+.qxbar span{display:block;height:100%;background:linear-gradient(90deg,#3fd8ad,#0f9d76);transition:width .3s}
+.qxants{display:flex;flex-wrap:wrap;gap:6px}
+.qxant{font-size:12px;color:var(--mu);background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:4px 10px}
+.qxant b{color:var(--tx)}
+.qxsl{width:22px;height:22px;flex:none;border:1.5px solid var(--bd);border-radius:6px;background:var(--card);color:transparent;font-size:13px;font-weight:800;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center}
+.qxsl:hover{border-color:var(--ac)}
+.qxsl.on{background:var(--ac);border-color:var(--ac);color:#fff}
+
 /* --- Resumen por departamento (Panel de RRHH) --- */
 .qxdep{overflow:auto;border:1px solid var(--bd);border-radius:14px;background:var(--card);box-shadow:var(--sh)}
 .qxdep table{width:100%;border-collapse:collapse;font-size:13px}

@@ -529,6 +529,10 @@ function qxAnalizaVenc(meses) {
   let conFecha = 0;
 
   for (const e of emps) {
+    /* Adelantos con datos pero sin detalle: se revisa siempre, tenga o no fecha de ingreso */
+    const ad = (e.adelantos || []).reduce((a, b) => a + b.filter(x => (x.anios || x.periodo) && !x.detalle).length, 0);
+    if (ad) revisar.push({ e, texto: ad + ' adelanto(s) sin detalle' });
+
     if (!e.fechaIngreso) { revisar.push({ e, texto: 'Sin fecha de ingreso' }); continue; }
     conFecha++;
 
@@ -546,15 +550,52 @@ function qxAnalizaVenc(meses) {
       if (f >= hoy && f <= limite) proximos.push({ e, i, iso, dias });
       else if (f < hoy) pendientes.push({ e, i, iso, dias: -dias });
     }
-
-    /* Adelantos con datos pero sin detalle */
-    const ad = e.adelantos.reduce((a, b) => a + b.filter(x => (x.anios || x.periodo) && !x.detalle).length, 0);
-    if (ad) revisar.push({ e, texto: ad + ' adelanto(s) sin detalle' });
   }
 
   proximos.sort((a, b) => a.dias - b.dias);        // los más urgentes primero
   pendientes.sort((a, b) => b.dias - a.dias);      // los más antiguos primero
   return { proximos, pendientes, revisar, total: emps.length, conFecha, meses: meses || 6 };
+}
+
+/** Desglose de la plantilla por departamento (para el panel de RRHH). */
+function qxPorDepto(meses) {
+  const emps = (qxData && qxData.empleados) || [];
+  const r = qxAnalizaVenc(meses);
+  const map = new Map();
+  const get = d => {
+    const k = d || '(sin departamento)';
+    if (!map.has(k)) map.set(k, { dep: k, emps: 0, cumplidos: 0, pendientes: 0, proximos: 0 });
+    return map.get(k);
+  };
+  for (const e of emps) {
+    const g = get(e.departamento);
+    g.emps++;
+    g.cumplidos += e.quinquenios.filter(q => q.estado === 'CUMPLE').length;
+  }
+  for (const x of r.pendientes) get(x.e.departamento).pendientes++;
+  for (const x of r.proximos) get(x.e.departamento).proximos++;
+  return [...map.values()].sort((a, b) => b.emps - a.emps);
+}
+
+/** Tabla de resumen por departamento. */
+function qxDeptoHTML(filas) {
+  if (!filas.length) return '';
+  const tot = filas.reduce((a, f) => ({
+    emps: a.emps + f.emps, cumplidos: a.cumplidos + f.cumplidos,
+    pendientes: a.pendientes + f.pendientes, proximos: a.proximos + f.proximos
+  }), { emps: 0, cumplidos: 0, pendientes: 0, proximos: 0 });
+  const tr = (f, esTot) => `<tr${esTot ? ' class="tot"' : ''}>
+      <td>${esc(f.dep)}</td><td class="n">${f.emps}</td><td class="n">${f.cumplidos}</td>
+      <td class="n">${f.pendientes}</td><td class="n">${f.proximos}</td></tr>`;
+  return `
+    <div class="pn">
+      <h2 style="font-size:15px;margin:0 0 8px">🏢 Resumen por departamento</h2>
+      <div class="qxdep"><table>
+        <thead><tr><th>Departamento</th><th class="n">Empleados</th><th class="n">Cumplidos</th>
+          <th class="n">Pendientes</th><th class="n">Próximos venc.</th></tr></thead>
+        <tbody>${filas.map(f => tr(f)).join('')}${tr({ dep: 'TOTAL', ...tot }, true)}</tbody>
+      </table></div>
+    </div>`;
 }
 
 /** Pinta el «Panel de RRHH»: vencimientos, pendientes y datos a revisar. */
@@ -622,7 +663,9 @@ function qxRenderVenc() {
 
     ${bloque('🔎 Datos a revisar',
       r.revisar.map(x => fila(x.e, '⚠️ Revisar', x.texto)).join(''),
-      'Los datos están completos ✅')}`;
+      'Los datos están completos ✅')}
+
+    ${qxDeptoHTML(qxPorDepto(r.meses))}`;
 }
 
 /** PDF del panel de RRHH (próximos vencimientos, pendientes y revisión). */

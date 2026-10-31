@@ -368,6 +368,16 @@ img.pvsp{object-fit:contain}
 .pvtbl th:last-child,.pvtbl td:last-child{border-right:0}
 .pvtbl tbody tr:nth-child(even) td{background:var(--ac2)}
 
+/* --- Resumen por departamento (Panel de RRHH) --- */
+.qxdep{overflow:auto;border:1px solid var(--bd);border-radius:14px;background:var(--card);box-shadow:var(--sh)}
+.qxdep table{width:100%;border-collapse:collapse;font-size:13px}
+.qxdep th,.qxdep td{padding:9px 12px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+.qxdep th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mu);background:var(--bg);font-weight:700}
+.qxdep th.n,.qxdep td.n{text-align:right;font-variant-numeric:tabular-nums}
+.qxdep tbody tr:hover td{background:var(--ac2)}
+.qxdep tr.tot td{font-weight:800;background:var(--bg)}
+.qxdep tbody tr:last-child td{border-bottom:0}
+
 /* --- Detalles generales --- */
 #qxstatus{font-size:12.5px;font-weight:600;white-space:nowrap;transition:color .2s}
 .vhead h1{font-size:22px}

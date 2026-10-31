@@ -481,11 +481,16 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   bilineal), rotación y exportación a PDF con jsPDF.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
 - **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
-  **3 hojas** (MACRO · Hoja 1 · Hoja 3) como pestañas. La Hoja 1 y la Hoja 3 son
+  **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3). La Hoja 1 y la Hoja 3 son
   una **hoja de cálculo editable** dentro de la app: se busca, se filtra, se
   editan celdas (con guardado automático cifrado), se **añaden** y **eliminan
   trabajadores** y se exporta de vuelta a un `.xlsx` real. La pestaña MACRO es el
   buscador con la ficha completa (3 quinquenios y 3 gestiones de 4 adelantos).
+  La pestaña **Panel RRHH** es el tablero de trabajo del área: lista los
+  **próximos vencimientos** (3, 6 o 12 meses), los **quinquenios ya vencidos que
+  siguen sin gestionar** y los **datos a revisar** (sin fecha de ingreso,
+  `CUMPLE` marcado antes de tiempo, adelantos sin detalle), con **resumen por
+  departamento** y **exportación a PDF** para la jefatura.
 - **Excel**: vista dedicada a las hojas de cálculo. Lista los `.xlsx / .xls / .csv`
   guardados y permite abrirlos de tres formas: **«Excel Online»** (sube una copia
   a tu OneDrive y la abre con el Excel de Microsoft, con sincronización de vuelta),

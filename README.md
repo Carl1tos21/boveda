@@ -483,15 +483,8 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
 - **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
   **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3), pensado para **Recursos
-  Humanos** y con **la misma cara que Excel** para que nadie tenga que aprender
-  otra cosa: **cinta de opciones verde** con las secciones Registros / Base /
-  Filtrar / Ver, **barra de fórmulas** (cuadro de nombre + `fx` + valor de la celda
-  activa), **cuadrícula con las letras de columna (A, B, C…) y los números de fila**
-  empezando en 2, **pestañas de hoja abajo** y **barra de estado** («Listo · X de Y
-  registros»). Los colores siguen el verde de Excel (`#217346`) y todo tiene su
-  versión en **modo oscuro**.
-- La Hoja 1 y la Hoja 3 son una **hoja de cálculo editable** dentro de la app:
-  buscador, **filtros por departamento, estado del quinquenio y estado del
+  Humanos**. La Hoja 1 y la Hoja 3 son una **hoja de cálculo editable** dentro de
+  la app: buscador, **filtros por departamento, estado del quinquenio y estado del
   trámite**, **orden por cualquier columna** (clic en el encabezado), edición de
   celdas con guardado automático cifrado, **alta y baja de trabajadores**,
   **vista móvil en tarjetas** y exportación a un `.xlsx` real. La pestaña MACRO es

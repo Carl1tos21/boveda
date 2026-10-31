@@ -633,33 +633,6 @@ ok('la tabla conserva las 27 columnas', (hXl.match(/<th[ >]/g) || []).length ===
   (hXl.match(/<th[ >]/g) || []).length);
 qxSheet = 'macro';
 
-/* Render completo de la hoja con el armazón de Excel */
-qxData = { v: 1, origen: 'test', empleados: [
-  emp('x1', 'ANA EXCEL', 'Nomina', '2015-03-01'),
-  emp('x2', 'BETO EXCEL', 'Almacen', '2020-06-15')
-]};
-delete __els['qxgridwrap'];
-qxSheet = 'hoja1';
-qxFilter = ''; qxFDepto = ''; qxFQuin = ''; qxFGest = '';
-qxSort = { col: -1, dir: 1 }; qxPage = 0; qxPageSize = 50;
-qxRenderSheet('hoja1');
-var hS = __view.innerHTML;
-ok('la hoja se pinta con la cinta de Excel', /class="qxribbon"/.test(hS) && /qxrb-app/.test(hS));
-ok('la cinta agrupa Registros, Base, Filtrar y Ver',
-  /Registros/.test(hS) && /Base/.test(hS) && /Filtrar/.test(hS) && /Ver/.test(hS));
-ok('los filtros viven dentro de la cinta',
-  /id="qxfilter"/.test(hS) && /id="qxfdepto"/.test(hS) && /id="qxfquin"/.test(hS) && /id="qxfgest"/.test(hS));
-ok('la hoja tiene barra de fórmulas', /id="qxcellref"/.test(hS) && /class="qxfb-fx"/.test(hS));
-ok('la cuadrícula va dentro del armazón de Excel', /class="qxexcel"/.test(hS) && /class="qxgrid"/.test(hS));
-ok('las columnas llevan letra de Excel', /class="qxl">A</.test(hS) && /class="qxl">B</.test(hS));
-ok('las pestañas de hoja están abajo y hay barra de estado',
-  /class="qxtabs"/.test(hS) && /class="qxstatusbar"/.test(hS));
-ok('la barra de estado saluda como Excel', /Listo/.test(hS) && /cifrado/.test(hS));
-ok('la hoja sigue teniendo 27 columnas y 2 filas',
-  (hS.match(/<th[ >]/g) || []).length === 27 && (hS.match(/<tr data-id=/g) || []).length === 2,
-  (hS.match(/<th[ >]/g) || []).length + '/' + (hS.match(/<tr data-id=/g) || []).length);
-qxSheet = 'macro';
-
 JSON.stringify(out);
 """
 

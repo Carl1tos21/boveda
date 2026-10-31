@@ -368,6 +368,14 @@ img.pvsp{object-fit:contain}
 .pvtbl th:last-child,.pvtbl td:last-child{border-right:0}
 .pvtbl tbody tr:nth-child(even) td{background:var(--ac2)}
 
+/* --- Aviso de gestión pendiente en el menú + gestión del trámite --- */
+.rb,.bot button{position:relative}
+.qxnb{position:absolute;top:1px;right:1px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;line-height:17px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.4);pointer-events:none}
+.bot .qxnb{top:-2px;right:2px}
+.qxchk{display:flex;align-items:center;gap:9px;padding:10px 0;cursor:pointer;font-size:13.5px}
+.qxchk input{width:18px;height:18px;flex:none;margin:0}
+.qxgbtn{padding:6px 11px;font-size:12.5px}
+
 /* --- Resumen por departamento (Panel de RRHH) --- */
 .qxdep{overflow:auto;border:1px solid var(--bd);border-radius:14px;background:var(--card);box-shadow:var(--sh)}
 .qxdep table{width:100%;border-collapse:collapse;font-size:13px}

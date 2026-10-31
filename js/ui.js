@@ -91,6 +91,9 @@ function render() {
   else if (view === 'qx') renderQx();
   else if (view === 'xls') renderXls();
   else renderDocs();
+
+  /* Aviso rojo en el menú con los quinquenios vencidos sin gestionar. */
+  if (typeof qxUpdateBadge === 'function') qxUpdateBadge();
 }
 
 /* ===================== Modales ===================== */

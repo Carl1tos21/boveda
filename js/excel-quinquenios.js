@@ -46,6 +46,9 @@ const QX_HOJA3_KEYS = [
 const QX_QUIN_OPTS = ['CUMPLE', 'NO CUMPLE'];
 const QX_VISADO_OPTS = ['Sí', 'No'];
 
+/* Flujo de gestión del trámite de cada quinquenio (lo que hace RRHH). */
+const QX_GESTION_OPTS = ['Pendiente', 'En proceso', 'Aprobado', 'Pagado', 'Rechazado'];
+
 /* --------------------------- Utilidades --------------------------------- */
 
 /** Minúsculas sin acentos (para comparar nombres como en el buscador). */
@@ -65,7 +68,7 @@ function qxEmptyEmpleado(nombre) {
     nombre: String(nombre || '').trim(),
     fechaIngreso: '',
     cargo: '',
-    quinquenios: [0, 1, 2].map(() => ({ estado: '', periodo: '', visado: '' })),
+    quinquenios: [0, 1, 2].map(() => ({ estado: '', periodo: '', visado: '', gestion: '', fechaGestion: '', responsable: '', nota: '' })),
     adelantos: [0, 1, 2].map(() => [0, 1, 2, 3].map(() => ({ detalle: '', periodo: '', anios: '', visado: '' })))
   };
   QX_HOJA3_KEYS.forEach(k => { e[k] = ''; });
@@ -77,7 +80,7 @@ function qxFixEmpleado(e) {
   const base = qxEmptyEmpleado(e && e.nombre);
   const out = Object.assign(base, e || {});
   out.id = out.id || qxSlug(out.nombre);
-  out.quinquenios = [0, 1, 2].map(i => Object.assign({ estado: '', periodo: '', visado: '' }, (e && e.quinquenios && e.quinquenios[i]) || {}));
+  out.quinquenios = [0, 1, 2].map(i => Object.assign({ estado: '', periodo: '', visado: '', gestion: '', fechaGestion: '', responsable: '', nota: '' }, (e && e.quinquenios && e.quinquenios[i]) || {}));
   out.adelantos = [0, 1, 2].map(i => [0, 1, 2, 3].map(j => Object.assign({ detalle: '', periodo: '', anios: '', visado: '' }, (e && e.adelantos && e.adelantos[i] && e.adelantos[i][j]) || {})));
   QX_HOJA3_KEYS.forEach(k => { if (out[k] == null) out[k] = ''; });
   return out;
@@ -150,6 +153,12 @@ function qxCalcPeriodos(e, forzar) {
 /** Clase CSS para colorear un selector según el estado. */
 const qxEstadoCls = v => (v === 'CUMPLE' ? 'qx-ok' : v === 'NO CUMPLE' ? 'qx-no' : '');
 
+/** Clase CSS del selector de estado del trámite (colorea el select). */
+const qxGestionCls = v => (v === 'Pagado' || v === 'Aprobado' ? 'qx-ok' : v === 'Rechazado' ? 'qx-no' : '');
+
+/** Clase CSS del badge del trámite en los listados. */
+const qxGestionBadge = v => (v === 'Pagado' || v === 'Aprobado' ? 'ok' : v === 'Rechazado' ? 'no' : 'ac');
+
 /** Fecha ISO (aaaa-mm-dd) desde Date de Excel, serial o texto dd/mm/aaaa. */
 function qxToISO(v) {
   if (v == null || v === '') return '';
@@ -204,6 +213,7 @@ async function qxLoad() {
   if (!qxData || !Array.isArray(qxData.empleados)) qxData = null;
   else qxData.empleados = qxData.empleados.map(qxFixEmpleado);
   qxLoaded = true;
+  qxUpdateBadge();
 }
 
 /** Persiste qxData cifrado (AES-GCM) como registro de la bóveda. */
@@ -222,6 +232,7 @@ async function qxPersist() {
   await saveDoc(d, key, true);
   qxDirty = false;
   qxSetStatus('saved');
+  qxUpdateBadge();
 }
 
 /** Guardado diferido (los edits de la ficha no bloquean la interfaz). */
@@ -557,6 +568,32 @@ function qxAnalizaVenc(meses) {
   return { proximos, pendientes, revisar, total: emps.length, conFecha, meses: meses || 6 };
 }
 
+/* --------- Aviso en el menú: quinquenios vencidos sin gestionar --------- */
+
+/** Nº de quinquenios ya vencidos que siguen sin gestionar. */
+function qxPendientesCount() {
+  if (!qxData || !Array.isArray(qxData.empleados)) return 0;
+  return qxAnalizaVenc(qxVencMeses).pendientes.length;
+}
+
+let qxBadgeN = -1;   // último valor pintado (para no tocar el DOM en balde)
+
+/** Pinta (o quita) el aviso rojo en los botones «Quin/Adel» del menú. */
+function qxUpdateBadge() {
+  const n = qxPendientesCount();
+  if (n === qxBadgeN) return;
+  qxBadgeN = n;
+  const botones = document.querySelectorAll('[data-v="qx"]');
+  for (let k = 0; k < botones.length; k++) {
+    const b = botones[k];
+    let bd = b.querySelector('.qxnb');
+    if (!n) { if (bd) bd.remove(); continue; }
+    if (!bd) { bd = document.createElement('span'); bd.className = 'qxnb'; b.appendChild(bd); }
+    bd.textContent = n > 99 ? '99+' : String(n);
+    bd.title = n + ' quinquenio(s) vencido(s) sin gestionar';
+  }
+}
+
 /** Desglose de la plantilla por departamento (para el panel de RRHH). */
 function qxPorDepto(meses) {
   const emps = (qxData && qxData.empleados) || [];
@@ -603,7 +640,7 @@ function qxRenderVenc() {
   const v = $('#view');
   const r = qxAnalizaVenc(qxVencMeses);
 
-  const fila = (e, titulo, detalle) => `
+  const fila = (e, titulo, detalle, i) => `
     <div class="row2" data-a="qxficha" data-id="${esc(e.id)}" data-from="venc" style="padding-left:14px">
       <span class="tile" style="background:${tileColor(e.departamento || 'General')}">${ic('id')}</span>
       <span class="nm">
@@ -613,6 +650,7 @@ function qxRenderVenc() {
       <span class="hide-m" style="text-align:right;margin-right:10px;flex:none">
         <b>${esc(titulo)}</b><br><span class="mu">${esc(detalle)}</span>
       </span>
+      ${i == null ? '' : '<button class="btn qxgbtn" data-a="qxgestion" data-id="' + esc(e.id) + '" data-i="' + i + '" title="Registrar la gestión del trámite">' + ic('ok') + 'Gestionar</button>'}
       ${ic('chevron')}
     </div>`;
 
@@ -654,11 +692,11 @@ function qxRenderVenc() {
     </div>
 
     ${bloque('⏰ Próximos vencimientos',
-      r.proximos.map(x => fila(x.e, QX_QUIN_LABELS[x.i], qxFmtCorto(x.iso) + ' · en ' + x.dias + ' días')).join(''),
+      r.proximos.map(x => fila(x.e, QX_QUIN_LABELS[x.i], qxFmtCorto(x.iso) + ' · en ' + x.dias + ' días', x.i)).join(''),
       'Ningún quinquenio vence en los próximos ' + r.meses + ' meses.')}
 
     ${bloque('⚠️ Pendientes de gestionar (ya vencieron)',
-      r.pendientes.map(x => fila(x.e, QX_QUIN_LABELS[x.i], qxFmtCorto(x.iso) + ' · hace ' + x.dias + ' días')).join(''),
+      r.pendientes.map(x => fila(x.e, QX_QUIN_LABELS[x.i], qxFmtCorto(x.iso) + ' · hace ' + x.dias + ' días', x.i)).join(''),
       'Todo al día ✅')}
 
     ${bloque('🔎 Datos a revisar',
@@ -703,6 +741,58 @@ function qxPrintVenc() {
     r.revisar.map(x => x.e.nombre + '  ·  ' + x.texto));
 
   qxOpenPrint(doc);
+}
+
+/* --------- Gestión del trámite (Pendiente → En proceso → Pagado) -------- */
+
+/** Abre el diálogo para gestionar el quinquenio i del empleado. */
+function qxGestionDialog(id, i) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e || !e.quinquenios[i]) return;
+  const q = e.quinquenios[i];
+  const fecha = qxFechaQuin(e, i);
+  const dias = qxDiasPara(fecha);
+  const cuando = dias === null ? '' :
+    (dias >= 0 ? ' · faltan ' + dias + ' días' : ' · vencido hace ' + (-dias) + ' días');
+  openModal(`<h2>Gestionar ${QX_QUIN_LABELS[i]}</h2>
+    <div class="mu" style="margin-bottom:12px">${esc(e.nombre)} · ${esc(e.cargo || 'sin cargo')}<br>
+      Se cumple el <b>${esc(qxFmtCorto(fecha) || '—')}</b>${esc(cuando)}</div>
+    <div class="f"><label>Estado del trámite</label>
+      <select id="qxg-gestion">${qxSelOpts(QX_GESTION_OPTS, q.gestion, '—')}</select></div>
+    <div class="f"><label>Fecha de gestión</label><input id="qxg-fecha" type="date" value="${esc(q.fechaGestion)}"></div>
+    <div class="f"><label>Responsable</label><input id="qxg-resp" type="text" value="${esc(q.responsable)}" placeholder="Quién lo tramita"></div>
+    <div class="f"><label>Nota</label><input id="qxg-nota" type="text" value="${esc(q.nota)}" placeholder="Observaciones"></div>
+    <label class="qxchk"><input type="checkbox" id="qxg-cumple"${q.estado === 'CUMPLE' ? ' checked' : ''}>
+      <span>El quinquenio <b>se cumple</b> (marcar CUMPLE)</span></label>
+    <div class="fx"><button class="btn" data-a="close">Cancelar</button>
+      <button class="btn p" data-a="qxgsave" data-id="${esc(id)}" data-i="${i}">${ic('ok')}Guardar</button></div>`);
+}
+
+/** Guarda el estado del trámite de un quinquenio. */
+async function qxGestionSave(id, i) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e || !e.quinquenios[i]) return;
+  const q = e.quinquenios[i];
+  const g = document.getElementById('qxg-gestion');
+  const f = document.getElementById('qxg-fecha');
+  const r = document.getElementById('qxg-resp');
+  const n = document.getElementById('qxg-nota');
+  const c = document.getElementById('qxg-cumple');
+  if (g) q.gestion = g.value;
+  if (f) q.fechaGestion = f.value;
+  if (r) q.responsable = r.value.trim();
+  if (n) q.nota = n.value.trim();
+  if (c) {
+    if (c.checked) q.estado = 'CUMPLE';
+    else if (q.estado === 'CUMPLE') q.estado = '';
+  }
+  /* Si se marca CUMPLE y nadie puso estado de trámite, se da por aprobado. */
+  if (q.estado === 'CUMPLE' && !q.gestion) q.gestion = 'Aprobado';
+  await qxPersist();
+  closeModal();
+  qxBadgeN = -1;             // fuerza el recálculo del aviso del menú
+  renderQx();
+  toast('Gestión guardada ✅');
 }
 
 /** Vista principal «Quin/Adel»: pestañas MACRO · Hoja 1 · Hoja 3. */
@@ -1165,6 +1255,18 @@ async function renderQxFicha(id, from) {
       </table></div>`;
   }).join('');
 
+  /* Tabla 3: estado del trámite de cada quinquenio (flujo de trabajo de RRHH). */
+  const filasGestion = QX_QUIN_LABELS.map((lab, i) => {
+    const q = e.quinquenios[i];
+    return `<tr>
+      <td><b>${lab}</b></td>
+      <td><select class="${qxGestionCls(q.gestion)}" data-qx="quin-gestion" data-i="${i}">${qxSelOpts(QX_GESTION_OPTS, q.gestion, '—')}</select></td>
+      <td><input type="date" data-qx="quin-fechag" data-i="${i}" value="${esc(q.fechaGestion)}"></td>
+      <td><input type="text" data-qx="quin-resp" data-i="${i}" value="${esc(q.responsable)}" placeholder="Quién lo tramita"></td>
+      <td><input type="text" data-qx="quin-nota" data-i="${i}" value="${esc(q.nota)}" placeholder="Observaciones"></td>
+    </tr>`;
+  }).join('');
+
   v.innerHTML = `
     <div class="vhead"><h1>${esc(e.nombre)}</h1><span class="sp"></span><span id="qxstatus" class="mu"></span></div>
     <div style="margin-bottom:12px"><button class="btn" data-a="qxback">${ic('chevron')}Volver</button></div>
@@ -1184,6 +1286,14 @@ async function renderQxFicha(id, from) {
     <div class="pn">
       <h2 style="font-size:15px;margin:0 0 4px">Adelantos por gestión</h2>
       ${bloquesAdel}
+    </div>
+    <div class="pn">
+      <h2 style="font-size:15px;margin:0 0 4px">Gestión del trámite</h2>
+      <div class="mu" style="margin-bottom:8px">Pendiente → En proceso → Aprobado → Pagado. Sirve para saber qué queda por cerrar.</div>
+      <div style="overflow-x:auto"><table class="qxt">
+        <tr><th style="min-width:150px">Quinquenio</th><th style="min-width:140px">Estado del trámite</th><th style="min-width:150px">Fecha de gestión</th><th style="min-width:170px">Responsable</th><th style="min-width:200px">Nota</th></tr>
+        ${filasGestion}
+      </table></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn p" data-a="qxprint" data-id="${esc(e.id)}">${ic('pr')}Imprimir ficha (PDF)</button>
@@ -1218,6 +1328,13 @@ function qxApplyEdit(e, el) {
   }
   else if (t === 'quin-periodo') e.quinquenios[i].periodo = val;
   else if (t === 'quin-visado') e.quinquenios[i].visado = qxVisado(val);
+  else if (t === 'quin-gestion') {
+    e.quinquenios[i].gestion = val;
+    el.className = qxGestionCls(val);   // colorea el selector al instante
+  }
+  else if (t === 'quin-fechag') e.quinquenios[i].fechaGestion = val;
+  else if (t === 'quin-resp') e.quinquenios[i].responsable = val;
+  else if (t === 'quin-nota') e.quinquenios[i].nota = val;
   else if (t === 'adel-detalle') e.adelantos[i][j].detalle = val;
   else if (t === 'adel-periodo') e.adelantos[i][j].periodo = val;
   else if (t === 'adel-anios') e.adelantos[i][j].anios = val;
@@ -1500,6 +1617,9 @@ const QX_ACTIONS = {
   /* Panel de RRHH */
   qxvencmes: el => { qxVencMeses = +el.dataset.n || 6; renderQx(); },
   qxvencprint: () => qxPrintVenc(),
+  /* Gestión del trámite */
+  qxgestion: el => qxGestionDialog(el.dataset.id, +el.dataset.i),
+  qxgsave: el => qxGestionSave(el.dataset.id, +el.dataset.i),
   qxexport: async () => {
     if (!qxData) return toast('No hay base para exportar');
     download(new Blob([JSON.stringify(qxData, null, 1)], { type: 'application/json' }),

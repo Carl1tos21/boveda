@@ -24,8 +24,22 @@ function toast(m){ __toasts.push(m); }
 function addEventListener(){}
 function download(){}
 function qxOpenPrint(){ __printed = 1; }
+var __els = {};
+var __modal = '';
+var __saved = 0;
+var __rendered = 0;
+function openModal(html){ __modal = html; }
+function closeModal(){}
 var window = {};
-var document = { visibilityState: 'visible' };
+var document = {
+  visibilityState: 'visible',
+  querySelectorAll: function(){ return []; },
+  getElementById: function(id){ return __els[id] || null; },
+  createElement: function(){
+    return { style: {}, classList: { add: function(){}, remove: function(){} },
+      appendChild: function(){}, remove: function(){}, querySelector: function(){ return null; } };
+  }
+};
 var navigator = { userAgent: 'test' };
 var localStorage = { getItem: function(){return null;}, setItem: function(){}, removeItem: function(){} };
 var Blob = function(){}; var URL = { createObjectURL: function(){return '';}, revokeObjectURL: function(){} };
@@ -125,6 +139,76 @@ qxVencMeses = 6;
 ok('la accion qxvencmes existe', typeof QX_ACTIONS.qxvencmes === 'function');
 ok('la accion qxvencprint existe', typeof QX_ACTIONS.qxvencprint === 'function');
 ok('volver desde el panel existe', typeof QX_ACTIONS.qxback === 'function');
+qxSheet = 'macro';
+
+/* ---------- Bloque A: gestión del trámite (Pendiente → Pagado) ---------- */
+var g = qxEmptyEmpleado('ZOE GESTION');
+g.fechaIngreso = '2015-03-01';
+ok('el empleado nuevo trae los 4 campos de gestión',
+  'gestion' in g.quinquenios[0] && 'fechaGestion' in g.quinquenios[0] &&
+  'responsable' in g.quinquenios[0] && 'nota' in g.quinquenios[0]);
+ok('qxFixEmpleado rellena los campos en bases antiguas', (function () {
+  var viejo = qxFixEmpleado({ nombre: 'VIEJO', quinquenios: [{ estado: 'CUMPLE' }] });
+  return viejo.quinquenios[0].gestion === '' && viejo.quinquenios[0].fechaGestion === '' &&
+    viejo.quinquenios[0].estado === 'CUMPLE';
+})());
+ok('el flujo tiene los 5 estados', QX_GESTION_OPTS.length === 5 &&
+  QX_GESTION_OPTS.indexOf('Pendiente') >= 0 && QX_GESTION_OPTS.indexOf('Pagado') >= 0);
+ok('colores del trámite', qxGestionCls('Pagado') === 'qx-ok' && qxGestionCls('Rechazado') === 'qx-no' &&
+  qxGestionCls('Pendiente') === '' && qxGestionBadge('Aprobado') === 'ok');
+
+qxData.empleados.push(g);
+qxGestionDialog(g.id, 0);
+ok('el diálogo pide estado, fecha, responsable y nota',
+  /qxg-gestion/.test(__modal) && /qxg-fecha/.test(__modal) && /qxg-resp/.test(__modal) && /qxg-nota/.test(__modal));
+ok('el diálogo ofrece el flujo completo',
+  /Pendiente/.test(__modal) && /En proceso/.test(__modal) && /Aprobado/.test(__modal) &&
+  /Pagado/.test(__modal) && /Rechazado/.test(__modal));
+ok('el diálogo marca CUMPLE si ya lo estaba', !/checked/.test(__modal));
+
+__els['qxg-gestion'] = { value: 'Pagado' };
+__els['qxg-fecha'] = { value: '2026-01-15' };
+__els['qxg-resp'] = { value: '  Maria  ' };
+__els['qxg-nota'] = { value: ' Pagado en nomina ' };
+__els['qxg-cumple'] = { checked: true };
+qxPersist = function () { __saved++; return Promise.resolve(); };
+renderQx = function () { __rendered++; };
+qxGestionSave(g.id, 0);
+ok('guardar escribe el estado del trámite', g.quinquenios[0].gestion === 'Pagado', g.quinquenios[0].gestion);
+ok('guardar guarda la fecha de gestión', g.quinquenios[0].fechaGestion === '2026-01-15', g.quinquenios[0].fechaGestion);
+ok('guardar recorta el responsable', g.quinquenios[0].responsable === 'Maria', g.quinquenios[0].responsable);
+ok('guardar recorta la nota', g.quinquenios[0].nota === 'Pagado en nomina', g.quinquenios[0].nota);
+ok('marcar CUMPLE desde el diálogo funciona', g.quinquenios[0].estado === 'CUMPLE', g.quinquenios[0].estado);
+ok('y se persiste', __saved === 1, __saved);
+
+/* Desmarcar CUMPLE debe limpiarlo, no dejarlo colgado */
+__els['qxg-cumple'] = { checked: false };
+qxGestionSave(g.id, 1);
+ok('desmarcar CUMPLE lo quita', g.quinquenios[1].estado === '', g.quinquenios[1].estado);
+
+/* Aviso del menú */
+var pend = qxAnalizaVenc(qxVencMeses).pendientes.length;
+ok('qxPendientesCount coincide con el panel', qxPendientesCount() === pend, qxPendientesCount() + ' vs ' + pend);
+ok('qxPendientesCount es 0 sin base', (function () {
+  var g2 = qxData; qxData = null; var n = qxPendientesCount(); qxData = g2; return n === 0;
+})());
+ok('qxUpdateBadge no revienta sin botones', (function () {
+  try { qxBadgeN = -1; qxUpdateBadge(); return true; } catch (e) { return false; }
+})());
+ok('las acciones del trámite existen',
+  typeof QX_ACTIONS.qxgestion === 'function' && typeof QX_ACTIONS.qxgsave === 'function');
+
+/* El panel ofrece «Gestionar» en las filas con quinquenio */
+qxSheet = 'venc';
+qxRenderVenc();
+var h2 = __view.innerHTML;
+ok('el panel pone botón Gestionar en los vencimientos',
+  /data-a="qxgestion"/.test(h2) && /data-i="0"/.test(h2));
+ok('las filas de «datos a revisar» no llevan Gestionar',
+  (h2.match(/data-a="qxgestion"/g) || []).length ===
+  (h2.match(/data-from="venc"/g) || []).length - (h2.match(/⚠️ Revisar/g) || []).length,
+  (h2.match(/data-a="qxgestion"/g) || []).length + ' botones / ' +
+  (h2.match(/data-from="venc"/g) || []).length + ' filas');
 qxSheet = 'macro';
 
 JSON.stringify(out);

@@ -689,6 +689,8 @@
         await until(() => $$('.qxtab').length === 4 && /MACRO/.test($('#view').innerHTML) &&
           /Panel RRHH/.test($('#view').innerHTML) &&
           /Hoja 1/.test($('#view').innerHTML) && /Hoja 3/.test($('#view').innerHTML)));
+      step('el aviso de pendientes se pinta en el menú',
+        await until(() => !!$('[data-v="qx"] .qxnb')));
 
       /* Panel de RRHH: vencimientos, pendientes y datos a revisar */
       $('[data-a="qxsheet"][data-s="venc"]').click();
@@ -700,6 +702,36 @@
         /ANA PRUEBA UNO/.test($('#view').innerHTML));
       step('el Panel RRHH avisa del empleado sin fecha de ingreso',
         /Sin fecha de ingreso/.test($('#view').innerHTML));
+
+      /* Gestión del trámite (Bloque A): estado, fecha, responsable y nota */
+      step('el Panel RRHH ofrece botones «Gestionar»',
+        $$('[data-a="qxgestion"]').length > 0, $$('[data-a="qxgestion"]').length);
+      const gbtn = $('[data-a="qxgestion"]');
+      const gid = gbtn.dataset.id, gi = +gbtn.dataset.i;
+      gbtn.click();
+      step('el diálogo de gestión pide los 4 datos',
+        await until(() => !!$('#qxg-gestion') && !!$('#qxg-fecha') && !!$('#qxg-resp') &&
+          !!$('#qxg-nota') && !!$('#qxg-cumple')));
+      step('el diálogo ofrece el flujo Pendiente → Pagado',
+        /Pendiente/.test($('.md').innerHTML) && /En proceso/.test($('.md').innerHTML) &&
+        /Aprobado/.test($('.md').innerHTML) && /Pagado/.test($('.md').innerHTML) &&
+        /Rechazado/.test($('.md').innerHTML));
+      $('#qxg-gestion').value = 'Pagado';
+      $('#qxg-resp').value = '  RRHH  ';
+      $('#qxg-cumple').checked = true;
+      $('[data-a="qxgsave"]').click();
+      step('guardar el trámite marca CUMPLE, recorta y persiste',
+        await until(() => {
+          const emp = qxData.empleados.find(e => e.id === gid);
+          return !$('.md') && emp && emp.quinquenios[gi].gestion === 'Pagado' &&
+            emp.quinquenios[gi].responsable === 'RRHH' && emp.quinquenios[gi].estado === 'CUMPLE';
+        }));
+      step('el aviso del menú aparece en el botón Quin/Adel',
+        await until(() => !!$('[data-v="qx"] .qxnb')));
+      step('el aviso del menú aparece en el botón Quin/Adel',
+        await until(() => !!$('[data-v="qx"] .qxnb')));
+      step('y desaparece al no quedar pendientes',
+        await until(() => !$('[data-v="qx"] .qxnb')));
 
       $('[data-a="qxsheet"][data-s="hoja1"]').click();
       step('la Hoja 1 pinta la tabla editable',

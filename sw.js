@@ -51,7 +51,12 @@ const ASSETS = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE)
-      .then(cache => Promise.all(ASSETS.map(a => cache.add(a).catch(() => { }))))
+      .then(cache => Promise.all(ASSETS.map(a =>
+        // 'reload' ignora la caché HTTP del navegador: al actualizar nunca se
+        // guarda una copia vieja (era la causa de ver la versión anterior).
+        cache.add(new Request(new URL(a, self.location).href, { cache: 'reload' }))
+          .catch(() => { })
+      )))
       .then(() => self.skipWaiting())
   );
 });
@@ -77,7 +82,9 @@ self.addEventListener('fetch', event => {
   if (url.pathname.indexOf('/__') !== -1) return;
 
   event.respondWith(
-    fetch(req)
+    // 'no-cache' revalida con el servidor (304 si no cambió): así una versión
+    // nueva llega al instante y nunca se sirve una copia vieja de la caché.
+    fetch(req, { cache: 'no-cache' })
       .then(res => {
         if (res && res.ok && res.type === 'basic') {
           const copy = res.clone();

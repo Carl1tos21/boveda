@@ -252,6 +252,18 @@ function registerSW() {
   // Si el documento ya terminó de cargar, el evento 'load' no volverá a dispararse.
   if (document.readyState === 'complete') go();
   else addEventListener('load', go, { once: true });
+
+  // Cuando entra un service worker nuevo (app actualizada), recargamos una sola
+  // vez para no quedarnos con la versión anterior en pantalla.
+  if (!registerSW._once) {
+    registerSW._once = true;
+    let recargando = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recargando) return;
+      recargando = true;
+      location.reload();
+    });
+  }
 }
 
 /** ¿Está abierta como app instalada (pantalla completa)? */

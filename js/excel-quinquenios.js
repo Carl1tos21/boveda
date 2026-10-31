@@ -98,6 +98,57 @@ function qxAntiguedad(iso) {
   return años + ' años y ' + meses + ' meses';
 }
 
+/** Suma años a una fecha ISO (YYYY-MM-DD) y devuelve otra fecha ISO. */
+function qxMasAnios(iso, n) {
+  if (!iso) return '';
+  const f = new Date(iso + 'T00:00:00');
+  if (isNaN(f.getTime())) return '';
+  const d = new Date(f.getFullYear() + n, f.getMonth(), f.getDate());
+  const p = v => String(v).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+/** Fecha ISO -> «dd/mm/aaaa». */
+function qxFmtCorto(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : '';
+}
+
+/**
+ * Periodo del quinquenio número i (0, 1, 2) calculado desde la fecha de
+ * ingreso: el 1.º va del año 5 al 10, el 2.º del 10 al 15 y el 3.º del 15 al 20.
+ */
+function qxPeriodoQuin(fechaIngreso, i) {
+  const a = qxMasAnios(fechaIngreso, i * 5);
+  const b = qxMasAnios(fechaIngreso, (i + 1) * 5);
+  if (!a || !b) return '';
+  return qxFmtCorto(a) + ' - ' + qxFmtCorto(b);
+}
+
+/**
+ * Rellena los periodos de los 3 quinquenios usando la fecha de ingreso.
+ * Solo toca los que están VACÍOS (o todos si `forzar` es true), para no
+ * pisar lo que ya hayas escrito a mano.
+ * @returns {number} cuántos periodos se rellenaron
+ */
+function qxCalcPeriodos(e, forzar) {
+  if (!e || !e.fechaIngreso) return 0;
+  let n = 0;
+  for (let i = 0; i < 3; i++) {
+    const p = qxPeriodoQuin(e.fechaIngreso, i);
+    if (!p) continue;
+    const actual = e.quinquenios[i].periodo;
+    if ((!actual || forzar) && actual !== p) {
+      e.quinquenios[i].periodo = p;
+      n++;
+    }
+  }
+  return n;
+}
+
+/** Clase CSS para colorear un selector según el estado. */
+const qxEstadoCls = v => (v === 'CUMPLE' ? 'qx-ok' : v === 'NO CUMPLE' ? 'qx-no' : '');
+
 /** Fecha ISO (aaaa-mm-dd) desde Date de Excel, serial o texto dd/mm/aaaa. */
 function qxToISO(v) {
   if (v == null || v === '') return '';
@@ -426,7 +477,10 @@ function qxSearch(q) {
   const t = qxNorm(q);
   const list = (qxData && qxData.empleados) || [];
   if (!t) return [];
-  return list.filter(e => qxNorm(e.nombre).indexOf(t) >= 0).slice(0, 40);
+  return list.filter(e => {
+    const hay = [e.nombre, e.numPersona, e.cargo, e.departamento, e.codUbicacion, e.categoria].join(' ');
+    return qxNorm(hay).indexOf(t) >= 0;
+  }).slice(0, 40);
 }
 
 /** Estadísticas rápidas para las tarjetas del inicio. */
@@ -490,7 +544,7 @@ async function qxRenderMacro() {
     <div class="pn">
       <h2 style="font-size:15px;margin:0 0 8px">Buscar empleado</h2>
       <div class="mu" style="font-size:13px;margin-bottom:8px">Seleccione o ingrese el Nombre de la Persona:</div>
-      <input type="text" id="qxsearch" placeholder="Nombre del empleado…" value="${esc(qxBuscar)}" autocomplete="off">
+      <input type="text" id="qxsearch" placeholder="Nombre, cédula, cargo o departamento…" value="${esc(qxBuscar)}" autocomplete="off">
       <div id="qxresults" style="margin-top:10px">${qxResultsHtml()}</div>
     </div>` : `
     <div class="pn">
@@ -513,6 +567,7 @@ async function qxRenderMacro() {
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" data-a="qxprintall">${ic('pr')}Imprimir listado</button>
+      ${conBase ? '<button class="btn" data-a="qxcalcall">' + ic('rot') + 'Calcular periodos vacíos</button>' : ''}
       ${conBase ? '<button class="btn" data-a="qxexportxlsx">' + ic('dl') + 'Exportar Excel (.xlsx)</button>' : ''}
       ${conBase ? '<button class="btn" data-a="qxexport">' + ic('dl') + 'Exportar base (JSON)</button>' : ''}
     </div>`;
@@ -879,7 +934,7 @@ async function renderQxFicha(id, from) {
     const q = e.quinquenios[i];
     return `<tr>
       <td><b>${lab}</b> (${(i + 1) * 5} años)</td>
-      <td><select data-qx="quin-estado" data-i="${i}">${qxSelOpts(['CUMPLE', 'NO CUMPLE'], q.estado, '—')}</select></td>
+      <td><select class="${qxEstadoCls(q.estado)}" data-qx="quin-estado" data-i="${i}">${qxSelOpts(['CUMPLE', 'NO CUMPLE'], q.estado, '—')}</select></td>
       <td><input type="text" data-qx="quin-periodo" data-i="${i}" value="${esc(q.periodo)}" placeholder="dd/mm/aaaa - dd/mm/aaaa"></td>
       <td><select data-qx="quin-visado" data-i="${i}">${qxSelOpts(['Sí', 'No'], q.visado, '—')}</select></td>
     </tr>`;
@@ -925,6 +980,7 @@ async function renderQxFicha(id, from) {
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn p" data-a="qxprint" data-id="${esc(e.id)}">${ic('pr')}Imprimir ficha (PDF)</button>
+      <button class="btn" data-a="qxcalc">${ic('rot')}Calcular periodos</button>
       <button class="btn" data-a="qxback">Volver al listado</button>
     </div>
     <div class="mu" style="margin-top:10px">Los cambios se guardan solos, cifrados con tu contraseña.</div>`;
@@ -949,7 +1005,10 @@ function qxApplyEdit(e, el) {
   }
   else if (t === 'fecha') e.fechaIngreso = val;
   else if (t === 'cargo') e.cargo = val;
-  else if (t === 'quin-estado') e.quinquenios[i].estado = qxEstado(val);
+  else if (t === 'quin-estado') {
+    e.quinquenios[i].estado = qxEstado(val);
+    el.className = qxEstadoCls(e.quinquenios[i].estado);   // colorea el selector al instante
+  }
   else if (t === 'quin-periodo') e.quinquenios[i].periodo = val;
   else if (t === 'quin-visado') e.quinquenios[i].visado = qxVisado(val);
   else if (t === 'adel-detalle') e.adelantos[i][j].detalle = val;
@@ -1167,6 +1226,37 @@ const QX_ACTIONS = {
   qxmapback: () => { closeModal(); qxMap = null; qxMapping = {}; },
 
   qxseed: () => qxSeedBase(),
+
+  /* Calcula los periodos de los quinquenios desde la fecha de ingreso. */
+  qxcalc: async () => {
+    const e = ((qxData && qxData.empleados) || []).find(x => x.id === qxView.id);
+    if (!e) return;
+    if (!e.fechaIngreso) return toast('Pon primero la fecha de ingreso del empleado');
+    const n = qxCalcPeriodos(e);
+    if (!n) return toast('Los periodos ya estaban puestos');
+    await qxPersist();
+    renderQxFicha(e.id, qxView.from);
+    toast(n + ' periodo' + (n === 1 ? '' : 's') + ' calculado' + (n === 1 ? '' : 's') + ' ✅');
+  },
+
+  qxcalcall: async () => {
+    await qxLoad();
+    const emps = (qxData && qxData.empleados) || [];
+    if (!emps.length) return toast('No hay base cargada');
+    const ok = await confirmDialog('Calcular periodos',
+      'Se rellenan los periodos VACÍOS de los 3 quinquenios con la fecha de ingreso de cada empleado. Los que ya tengan un periodo escrito NO se tocan.',
+      'Calcular');
+    if (!ok) return;
+    let total = 0, cuantos = 0;
+    for (const e of emps) {
+      const n = qxCalcPeriodos(e);
+      if (n) { total += n; cuantos++; }
+    }
+    if (!total) return toast('No había periodos vacíos que calcular');
+    await qxPersist();
+    renderQx();
+    toast(total + ' periodo(s) en ' + cuantos + ' empleado(s) ✅');
+  },
   qxcat: el => renderQxList(el.dataset.cat),
   qxback: () => {
     if (qxView.mode === 'ficha' && qxView.from && qxView.from !== 'hoja1' && qxView.from !== 'hoja3') renderQxList(qxView.from);

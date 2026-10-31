@@ -252,6 +252,10 @@ input:focus,textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2
 .qxt td input,.qxt td select{min-width:110px;padding:7px 9px;font-size:13px}
 .qxt td input:hover,.qxt td select:hover{border-color:var(--ac)}
 
+/* Estado del quinquenio: verde si CUMPLE, ámbar si NO CUMPLE */
+.qxt select.qx-ok{background:var(--okbg);color:var(--ok);border-color:var(--okbd);font-weight:700}
+.qxt select.qx-no{background:var(--wnbg);color:var(--wn);border-color:var(--wnbd);font-weight:700}
+
 /* --- Hoja de cálculo editable (Hoja 1 / Hoja 3) --- */
 .qxgrid{scrollbar-width:thin}
 .qxgrid::-webkit-scrollbar{width:12px;height:12px}

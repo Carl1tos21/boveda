@@ -190,7 +190,8 @@ Bóveda/
 ├── data/
 │   └── base-quinquenios.json # Base incluida (338 registros de las hojas Hoja 1 y Hoja 3)
 ├── test/
-│   └── runner.js           # Prueba E2E (se inyecta solo en modo /__test)
+│   ├── runner.js           # Prueba E2E (se inyecta solo en modo /__test)
+│   └── logic-panel.py      # Prueba de lógica del Panel RRHH (quickjs, sin navegador)
 ├── tools/
 │   ├── build.py            # Genera dist/ listo para publicar
 │   ├── serve.py            # Servidor estático + rutas /__test y /__report
@@ -481,16 +482,33 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   bilineal), rotación y exportación a PDF con jsPDF.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
 - **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
-  **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3). La Hoja 1 y la Hoja 3 son
-  una **hoja de cálculo editable** dentro de la app: se busca, se filtra, se
-  editan celdas (con guardado automático cifrado), se **añaden** y **eliminan
-  trabajadores** y se exporta de vuelta a un `.xlsx` real. La pestaña MACRO es el
-  buscador con la ficha completa (3 quinquenios y 3 gestiones de 4 adelantos).
-  La pestaña **Panel RRHH** es el tablero de trabajo del área: lista los
-  **próximos vencimientos** (3, 6 o 12 meses), los **quinquenios ya vencidos que
-  siguen sin gestionar** y los **datos a revisar** (sin fecha de ingreso,
-  `CUMPLE` marcado antes de tiempo, adelantos sin detalle), con **resumen por
-  departamento** y **exportación a PDF** para la jefatura.
+  **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3), pensado para **Recursos
+  Humanos**. La Hoja 1 y la Hoja 3 son una **hoja de cálculo editable** dentro de
+  la app: buscador, **filtros por departamento, estado del quinquenio y estado del
+  trámite**, **orden por cualquier columna** (clic en el encabezado), edición de
+  celdas con guardado automático cifrado, **alta y baja de trabajadores**,
+  **vista móvil en tarjetas** y exportación a un `.xlsx` real. La pestaña MACRO es
+  el buscador con la ficha completa.
+- **Panel RRHH** (el tablero diario del área):
+  - ⏰ **Próximos vencimientos** (a 3, 6 o 12 meses), ordenados por urgencia.
+  - ⚠️ **Pendientes de gestionar**: quinquenios ya vencidos que siguen sin cerrar.
+  - 🔎 **Datos a revisar**: sin fecha de ingreso, `CUMPLE` marcado antes de
+    tiempo, adelantos sin detalle y **N.º de personal repetidos**.
+  - 📅 **Calendario de 12 meses**, exportable a `.xlsx`.
+  - 🏢 **Resumen por departamento** y **PDF del panel** para la jefatura.
+  - ⏰ **Aviso rojo en el menú** con el número de quinquenios vencidos sin
+    gestionar, sin necesidad de entrar.
+- **Flujo de gestión del trámite**: cada quinquenio lleva
+  `Pendiente → En proceso → Aprobado → Pagado / Rechazado` con **fecha de
+  gestión, responsable y nota**, editable desde la ficha o desde el botón
+  **«Gestionar»** del propio Panel.
+- **Constancia de quinquenio**: genera el **PDF formal** que se entrega al
+  trabajador (datos de la empresa y del firmante, que se recuerdan entre
+  constancias), con líneas de firma.
+- **Comprobantes**: se adjunta el comprobante de cada quinquenio y se guarda
+  **cifrado en la bóveda** (carpeta `Comprobantes`), enlazado a la ficha.
+- **Historial de cambios**: auditoría cifrada de ediciones, altas, bajas,
+  trámites y constancias (se conservan los últimos 500 movimientos).
 - **Excel**: vista dedicada a las hojas de cálculo. Lista los `.xlsx / .xls / .csv`
   guardados y permite abrirlos de tres formas: **«Excel Online»** (sube una copia
   a tu OneDrive y la abre con el Excel de Microsoft, con sincronización de vuelta),
@@ -543,6 +561,16 @@ código de salida 0 solo si todo pasa. Comprueban, entre otras cosas:
 `/__test` es una ruta exclusiva del servidor de pruebas: sirve `index.html` con un
 capturador de errores y `test/runner.js` inyectados (con un `nonce` válido para la
 CSP). El `index.html` de producción no se modifica nunca.
+
+Además, `test/logic-panel.py` ejecuta la lógica de Quinquenios y Adelantos en un
+motor JavaScript real (**quickjs**, sin navegador) y comprueba 119 casos: cálculo
+de vencimientos, calendario, filtros, orden, trámite, constancia, historial y
+comprobantes. Se salta solo si `quickjs` no está instalado:
+
+```bash
+pip install quickjs        # solo la primera vez
+python3 test/logic-panel.py
+```
 
 ---
 

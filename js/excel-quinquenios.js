@@ -1000,8 +1000,7 @@ function qxRenderVenc() {
     </div>`;
   };
 
-  const mesBtn = n => '<button class="qxrb-btn' + (qxVencMeses === n ? ' on' : '') + '" data-a="qxvencmes" data-n="' + n + '">' +
-    ic('clock') + '<span>' + n + ' meses</span></button>';
+  const mesBtn = n => `<button class="qxps${qxVencMeses === n ? ' on' : ''}" data-a="qxvencmes" data-n="${n}">${n} meses</button>`;
   const bloque = (titulo, lista, vacio, cabecera) => `
     <div class="pn">
       <h2 style="font-size:15px;margin:0 0 8px">${titulo}</h2>
@@ -1011,29 +1010,17 @@ function qxRenderVenc() {
 
   v.innerHTML = `
     <div class="vhead"><h1>Panel de RRHH</h1></div>
-    <div class="qxexcel">
-      ${qxRibbonHTML([
-        { lab: 'Plazo de aviso', html:
-          '<span class="mu" style="align-self:center;padding:0 4px">Próximos</span>' +
-          [3, 6, 12].map(mesBtn).join('')
-        },
-        { lab: 'Base', botones: [
-          { a: 'qxpuestaaldia', ic: 'ok', txt: 'Al día' },
-          { a: 'qxcalcall', ic: 'rot', txt: 'Periodos' },
-          { a: 'qxreload', ic: 'rot', txt: 'Recargar' }
-        ] },
-        { lab: 'Informes', botones: [
-          { a: 'qxvencprint', ic: 'pr', txt: 'Imprimir' },
-          { a: 'qxcalxlsx', ic: 'dl', txt: 'Calendario' },
-          { a: 'qxhist', ic: 'clock', txt: 'Historial' }
-        ] },
-        { lab: 'Hojas', botones: [
-          { a: 'qxsheet', datos: ' data-s="hoja1"', ic: 'file', txt: 'Hoja 1' },
-          { a: 'qxsheet', datos: ' data-s="hoja3"', ic: 'file', txt: 'Hoja 3' }
-        ] }
-      ], 'Inicio')}
-      <div class="pn" style="border-radius:0;box-shadow:none;border-left:0;border-right:0">
-      <div class="mu" style="margin-bottom:12px">${r.total} empleado(s) en la base · ${r.conFecha} con fecha de ingreso</div>
+    ${qxSheetTabs()}
+    <div class="mu" style="margin-bottom:12px">${r.total} empleado(s) en la base · ${r.conFecha} con fecha de ingreso</div>
+
+    <div class="qxtools">
+      <span class="mu">Vencimientos de los próximos:</span>
+      ${mesBtn(3)}${mesBtn(6)}${mesBtn(12)}
+      <span class="sp"></span>
+      <button class="btn" data-a="qxhist">${ic('clock')}Historial</button>
+      <button class="btn" data-a="qxcalxlsx">${ic('dl')}Exportar calendario</button>
+      <button class="btn" data-a="qxvencprint">${ic('pr')}Imprimir panel</button>
+    </div>
 
     <div class="qxcards">
       <div class="qxc amber">
@@ -1070,11 +1057,7 @@ function qxRenderVenc() {
 
     ${qxCalHTML(12)}
 
-    ${qxDeptoHTML(qxPorDepto(r.meses))}
-      </div>
-      ${qxSheetTabs()}
-      ${qxStatusHTML()}
-    </div>`;
+    ${qxDeptoHTML(qxPorDepto(r.meses))}`;
 }
 
 /** PDF del panel de RRHH (próximos vencimientos, pendientes y revisión). */
@@ -1431,37 +1414,21 @@ async function qxRenderMacro() {
 
   v.innerHTML = `
     <div class="vhead"><h1>Quinquenios y Adelantos</h1><span class="sp"></span><span id="qxstatus" class="mu"></span></div>
-    <div class="qxexcel">
-      ${qxRibbonHTML([
-        { lab: 'Registros', botones: [
-          { a: 'qximport', ic: 'dl', txt: 'Importar' },
-          { a: 'qxexportxlsx', ic: 'dl', txt: 'Exportar' },
-          { a: 'qxexport', ic: 'dl', txt: 'Copia JSON' }
-        ] },
-        { lab: 'Base', botones: [
-          { a: 'qxseed', ic: 'rot', txt: 'Recargar' },
-          { a: 'qxcalcall', ic: 'clock', txt: 'Periodos' },
-          { a: 'qxpuestaaldia', ic: 'ok', txt: 'Al día' }
-        ] },
-        { lab: 'Ver', botones: [
-          { a: 'qxsheet', datos: ' data-s="venc"', ic: 'filter', txt: 'Panel RRHH' },
-          { a: 'qxhist', ic: 'clock', txt: 'Historial' },
-          { a: 'qxprintall', ic: 'pr', txt: 'Imprimir' }
-        ] }
-      ], 'Inicio')}
-      <div class="pn" style="border-radius:0;box-shadow:none;border-left:0;border-right:0">
-        <div class="mu" style="margin-bottom:12px">${st.emps.length} empleado${st.emps.length === 1 ? '' : 's'} en la base · clon de la hoja MACRO${qxData && qxData.gen ? ' · guardado ' + esc(qxData.gen) : ''}</div>
-        ${buscador}
-        ${tarjetas}
-        <div class="pn" style="margin-top:12px">
-          <h2 style="font-size:15px;margin:0 0 8px">Importar desde Excel</h2>
-          <div class="mu" style="font-size:13px">Archivo .xlsx/.xls. Si tiene la estructura del MACRO (hoja con «NOMBRE COMPLETO») se importa automáticamente; si no, te pide mapear las columnas.</div>
-          <input type="file" id="qxfile" accept=".xlsx,.xls" style="margin:8px 0;width:100%">
-          <button class="btn" data-a="qximport" style="width:100%">Seleccionar archivo Excel</button>
-        </div>
-      </div>
-      ${qxSheetTabs()}
-      ${qxStatusHTML()}
+    ${qxSheetTabs()}
+    <div class="mu" style="margin-bottom:14px">${st.emps.length} empleado${st.emps.length === 1 ? '' : 's'} en la base · clon de la hoja MACRO${qxData && qxData.gen ? ' · guardado ' + esc(qxData.gen) : ''}</div>
+    ${buscador}
+    ${tarjetas}
+    <div class="pn">
+      <h2 style="font-size:15px;margin:0 0 8px">Importar desde Excel</h2>
+      <div class="mu" style="font-size:13px">Archivo .xlsx/.xls. Si tiene la estructura del MACRO (hoja con «NOMBRE COMPLETO») se importa automáticamente; si no, te pide mapear las columnas.</div>
+      <input type="file" id="qxfile" accept=".xlsx,.xls" style="margin:8px 0;width:100%">
+      <button class="btn" data-a="qximport" style="width:100%">Seleccionar archivo Excel</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" data-a="qxprintall">${ic('pr')}Imprimir listado</button>
+      ${conBase ? '<button class="btn" data-a="qxcalcall">' + ic('rot') + 'Calcular periodos vacíos</button>' : ''}
+      ${conBase ? '<button class="btn" data-a="qxexportxlsx">' + ic('dl') + 'Exportar Excel (.xlsx)</button>' : ''}
+      ${conBase ? '<button class="btn" data-a="qxexport">' + ic('dl') + 'Exportar base (JSON)</button>' : ''}
     </div>`;
 
   /* Manejadores por listener (la CSP prohíbe los atributos on*= inline). */
@@ -1531,59 +1498,6 @@ async function renderQxList(cat) {
 }
 
 /* ------------------ Hoja de cálculo (MACRO · Hoja 1 · Hoja 3) ------------ */
-
-/* ------------------ Aspecto de Excel (cinta, fórmulas) ------------------ */
-
-/** Letra de columna estilo Excel: 0 -> A, 25 -> Z, 26 -> AA. */
-function qxColLetter(n) {
-  let s = '';
-  let v = (n | 0) + 1;
-  while (v > 0) {
-    const r = (v - 1) % 26;
-    s = String.fromCharCode(65 + r) + s;
-    v = Math.floor((v - 1) / 26);
-  }
-  return s;
-}
-
-/**
- * Cinta de opciones estilo Excel.
- * @param {Array} grupos [{ lab, botones:[{a,ic,txt,datos,cls}] } | { lab, html }]
- * @param {string} tab    pestaña activa (solo visual)
- */
-function qxRibbonHTML(grupos, tab) {
-  const btn = b => '<button class="qxrb-btn' + (b.cls ? ' ' + b.cls : '') + '" data-a="' + esc(b.a) + '"' +
-    (b.datos || '') + ' title="' + esc(b.txt) + '">' + ic(b.ic) + '<span>' + esc(b.txt) + '</span></button>';
-  const cuerpo = (grupos || []).map((g, k) =>
-    (k ? '<div class="qxrb-sep"></div>' : '') +
-    '<div class="qxrb-grp"><div class="qxrb-row">' +
-    (g.html || (g.botones || []).map(btn).join('')) +
-    '</div><div class="qxrb-lab">' + esc(g.lab) + '</div></div>').join('');
-  const tabs = ['Inicio', 'Datos', 'Revisar', 'Vista'];
-  return `<div class="qxribbon">
-    <div class="qxrb-top">
-      <span class="qxrb-app"><i>X</i>Quin/Adel</span>
-      ${tabs.map(t => '<button class="qxrbt' + (t === (tab || 'Inicio') ? ' on' : '') + '">' + t + '</button>').join('')}
-    </div>
-    <div class="qxrb-body">${cuerpo}</div>
-  </div>`;
-}
-
-/** Barra de estado estilo Excel. */
-function qxStatusHTML() {
-  const total = ((qxData && qxData.empleados) || []).length;
-  const esHoja = qxSheet === 'hoja1' || qxSheet === 'hoja3';
-  const visibles = esHoja ? qxSheetList().length : total;
-  return `<div class="qxstatusbar">
-    <span>Listo</span>
-    <span class="sp"></span>
-    <span>${esHoja
-      ? '<b>' + visibles + '</b> de <b>' + total + '</b> registro' + (total === 1 ? '' : 's') +
-        (qxFiltrosActivos() ? ' · filtrado' : '')
-      : '<b>' + total + '</b> trabajadores en la base'}</span>
-    <span>·</span><span>🔒 cifrado</span>
-  </div>`;
-}
 
 /** Barra de pestañas con las 3 hojas del Excel. */
 function qxSheetTabs() {
@@ -1731,20 +1645,18 @@ function qxGridAreaHtml() {
   if (qxPage < 0) qxPage = 0;
   const from = qxPage * size;
   const rows = list.slice(from, from + size);
-  const head = '<tr><th class="qxn" title="Número de fila"></th>' +
+  const head = '<tr><th class="qxn">#</th>' +
     cols.map((c, k) => {
       const on = qxSort.col === k;
       return '<th' + (c.cls ? ' class="' + c.cls + '"' : '') + ' style="min-width:' + c.w + 'px">' +
-        '<span class="qxcolhead"><span class="qxl">' + qxColLetter(k) + '</span>' +
         '<button class="qxsorth' + (on ? ' on' : '') + '" data-a="qxsort" data-k="' + k + '" title="Ordenar por «' + esc(c.h) + '»">' +
-        esc(c.h) + (on ? (qxSort.dir > 0 ? ' ▲' : ' ▼') : '') + '</button></span></th>';
+        esc(c.h) + (on ? (qxSort.dir > 0 ? ' ▲' : ' ▼') : '') + '</button></th>';
     }).join('') +
-    '<th class="qxa"></th></tr>';
+    '<th class="qxa">·</th></tr>';
   const body = rows.map((e, idx) => {
-    const filaXl = from + idx + 2;          // la fila 1 son los encabezados, como en Excel
     const tds = cols.map(c => '<td data-h="' + esc(c.h) + '"' + (c.cls ? ' class="' + c.cls + '"' : '') + '>' + qxCellHtml(e, c) + '</td>').join('');
-    return '<tr data-id="' + esc(e.id) + '" data-row="' + filaXl + '">' +
-      '<td class="qxn" data-h="#"><button class="qxopen" data-a="qxficha" data-id="' + esc(e.id) + '" data-from="' + qxSheet + '" title="Abrir ficha">' + filaXl + '</button></td>' +
+    return '<tr data-id="' + esc(e.id) + '">' +
+      '<td class="qxn" data-h="#"><button class="qxopen" data-a="qxficha" data-id="' + esc(e.id) + '" data-from="' + qxSheet + '" title="Abrir ficha">' + (from + idx + 1) + '</button></td>' +
       tds +
       '<td class="qxa" data-h="·"><button class="qxdel" data-a="qxdelrow" data-id="' + esc(e.id) + '" title="Eliminar trabajador">×</button></td>' +
       '</tr>';
@@ -1763,58 +1675,30 @@ function qxGridAreaHtml() {
 async function qxRenderSheet(sheet) {
   const v = $('#view');
   const emps = (qxData && qxData.empleados) || [];
-  const isH1 = sheet === 'hoja1';
-
-  /* Cinta de opciones (igual en todas las hojas). */
-  const cinta = qxRibbonHTML([
-    { lab: 'Registros', botones: [
-      { a: 'qxadd', ic: 'plus', txt: 'Añadir' },
-      { a: 'qximport', ic: 'dl', txt: 'Importar' },
-      { a: 'qxexportxlsx', ic: 'dl', txt: 'Exportar' }
-    ] },
-    { lab: 'Base', botones: [
-      { a: 'qxreload', ic: 'rot', txt: 'Recargar' },
-      { a: 'qxcalcall', ic: 'clock', txt: 'Periodos' },
-      { a: 'qxpuestaaldia', ic: 'ok', txt: 'Al día' }
-    ] },
-    { lab: 'Filtrar', html:
-      '<input type="text" id="qxfilter" placeholder="Buscar…" value="' + esc(qxFilter) + '" autocomplete="off">' +
-      '<select id="qxfdepto">' + qxFiltroOpts(qxDeptos(), qxFDepto, 'Departamento: todos', 'Sin departamento') + '</select>' +
-      '<select id="qxfquin">' + qxFiltroOpts(['CUMPLE', 'NO CUMPLE'], qxFQuin, 'Quinquenio: todos', 'Sin definir') + '</select>' +
-      '<select id="qxfgest">' + qxFiltroOpts(QX_GESTION_OPTS, qxFGest, 'Trámite: todos', 'Sin trámite') + '</select>' +
-      (qxFiltrosActivos() ? '<button class="qxrb-btn" data-a="qxfiltros">' + ic('rot') + '<span>Limpiar</span></button>' : '')
-    },
-    { lab: 'Ver', botones: [
-      { a: 'qxsheet', datos: ' data-s="venc"', ic: 'filter', txt: 'Panel RRHH' },
-      { a: 'qxhist', ic: 'clock', txt: 'Historial' },
-      { a: 'qxprintall', ic: 'pr', txt: 'Imprimir' }
-    ] }
-  ], 'Inicio');
-
   if (!qxData || !emps.length) {
-    v.innerHTML = '<div class="vhead"><h1>Quinquenios y Adelantos</h1></div>' +
-      '<div class="qxexcel">' + cinta +
-      '<div class="pn" style="border-radius:0;box-shadow:none">' +
-      '<h2 style="font-size:15px">Cargar base inicial</h2>' +
+    v.innerHTML = '<div class="vhead"><h1>Quinquenios y Adelantos</h1></div>' + qxSheetTabs() +
+      '<div class="pn"><h2 style="font-size:15px">Cargar base inicial</h2>' +
       '<div class="mu" style="margin-bottom:10px">Todavía no hay datos. Carga la base incluida o importa tu Excel.</div>' +
-      '<button class="btn p" data-a="qxseed" style="width:100%">Cargar base inicial</button></div>' +
-      qxSheetTabs() + qxStatusHTML() + '</div>';
+      '<button class="btn p" data-a="qxseed" style="width:100%">Cargar base inicial</button></div>';
     return;
   }
-
+  const isH1 = sheet === 'hoja1';
   v.innerHTML = `
     <div class="vhead"><h1>${isH1 ? 'Hoja 1' : 'Hoja 3'} · ${emps.length} trabajadores</h1><span class="sp"></span><span id="qxstatus" class="mu"></span></div>
-    <div class="qxexcel">
-      ${cinta}
-      <div class="qxfb">
-        <span class="qxfb-name" id="qxcellref">—</span>
-        <span class="qxfb-fx">fx</span>
-        <span class="qxfb-val" id="qxcellval">Haz clic en una celda para editarla; los cambios se guardan solos (cifrados).</span>
-      </div>
-      <div id="qxgridwrap">${qxGridAreaHtml()}</div>
-      ${qxSheetTabs()}
-      ${qxStatusHTML()}
-    </div>`;
+    ${qxSheetTabs()}
+    <div class="qxtools">
+      <input type="text" id="qxfilter" placeholder="Filtrar por nombre, cargo, depto…" value="${esc(qxFilter)}" autocomplete="off">
+      <select id="qxfdepto">${qxFiltroOpts(qxDeptos(), qxFDepto, 'Departamento: todos', 'Sin departamento')}</select>
+      <select id="qxfquin">${qxFiltroOpts(['CUMPLE', 'NO CUMPLE'], qxFQuin, 'Quinquenio: todos', 'Sin definir')}</select>
+      <select id="qxfgest">${qxFiltroOpts(QX_GESTION_OPTS, qxFGest, 'Trámite: todos', 'Sin trámite')}</select>
+      ${qxFiltrosActivos() ? '<button class="btn" data-a="qxfiltros">Limpiar filtros</button>' : ''}
+      <button class="btn p" data-a="qxadd">${ic('plus')}Añadir trabajador</button>
+      <button class="btn" data-a="qximport">${ic('dl')}Importar Excel</button>
+      <button class="btn" data-a="qxexportxlsx">${ic('dl')}Exportar .xlsx</button>
+      <button class="btn" data-a="qxreload" title="Vuelve a aplicar la base incluida sin borrar tus ediciones">Recargar base</button>
+    </div>
+    <div class="mu" style="margin:8px 0">Haz clic en cualquier celda para editarla; los cambios se guardan solos (cifrados). Pulsa un encabezado para ordenar y el número de fila para abrir la ficha completa (con los 4 adelantos por gestión).</div>
+    <div id="qxgridwrap">${qxGridAreaHtml()}</div>`;
   const fi = document.getElementById('qxfilter');
   if (fi) fi.oninput = () => qxFilterUpdate();
   ['qxfdepto', 'qxfquin', 'qxfgest'].forEach(id => {
@@ -1828,7 +1712,6 @@ async function qxRenderSheet(sheet) {
     };
   });
   qxBindGrid();
-  qxBindFormula();
 }
 
 /** Escucha los cambios de las celdas de la hoja de cálculo. */
@@ -1848,34 +1731,6 @@ function qxBindGrid() {
       const ant = tr.querySelector('[data-ant]');
       if (ant) ant.textContent = qxAntiguedad(e.fechaIngreso) || '—';
     }
-  });
-}
-
-/** Barra de fórmulas: muestra la referencia y el valor de la celda activa. */
-function qxBindFormula() {
-  const wrap = document.getElementById('qxgridwrap');
-  if (!wrap || wrap.dataset.fbound) return;
-  wrap.dataset.fbound = '1';
-  const pinta = el => {
-    const ref = document.getElementById('qxcellref');
-    const val = document.getElementById('qxcellval');
-    if (!ref || !val) return;
-    if (!el) { ref.textContent = '—'; return; }
-    const tr = el.closest ? el.closest('tr') : null;
-    const td = el.closest ? el.closest('td') : null;
-    const k = tr && td ? Array.prototype.indexOf.call(tr.children, td) - 1 : -1;
-    ref.textContent = (k >= 0 ? qxColLetter(k) : '') + ((tr && tr.dataset.row) || '');
-    val.textContent = el.value == null ? '' : el.value;
-  };
-  wrap.addEventListener('focusin', ev => pinta(ev.target.closest ? ev.target.closest('[data-qx]') : null));
-  wrap.addEventListener('input', ev => {
-    const el = ev.target.closest ? ev.target.closest('[data-qx]') : null;
-    const val = document.getElementById('qxcellval');
-    if (el && val) val.textContent = el.value == null ? '' : el.value;
-  });
-  wrap.addEventListener('change', ev => {
-    const el = ev.target.closest ? ev.target.closest('[data-qx]') : null;
-    if (el) pinta(el);
   });
 }
 

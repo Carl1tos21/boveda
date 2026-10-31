@@ -776,28 +776,6 @@
       $('[data-a="qxsheet"][data-s="hoja1"]').click();
       step('la Hoja 1 pinta la tabla editable',
         await until(() => !!$('.qxgrid table.qxs') && $$('.qxs tbody tr').length === 2));
-
-      /* Aspecto de Excel: cinta, barra de fórmulas, letras y números */
-      step('la hoja trae la cinta de opciones de Excel',
-        !!$('.qxribbon') && !!$('.qxrb-body') && !!$('.qxrb-lab'));
-      step('la cinta tiene las pestañas de Excel', $$('.qxrbt').length === 4, $$('.qxrbt').length);
-      step('la cinta agrupa los botones por secciones',
-        /Registros/.test($('.qxrb-body').innerHTML) && /Filtrar/.test($('.qxrb-body').innerHTML));
-      step('la cuadrícula trae la barra de fórmulas',
-        !!$('#qxcellref') && !!$('#qxcellval') && !!$('.qxfb-fx'));
-      step('las columnas llevan letra de Excel', !!$('.qxs thead .qxl'));
-      step('las filas se numeran desde 2, como Excel', !!$('.qxs tbody tr[data-row="2"]'));
-      step('las pestañas de hoja están abajo y hay barra de estado',
-        !!$('.qxtabs') && !!$('.qxstatusbar') && /Listo/.test($('.qxstatusbar').innerHTML));
-      step('la barra de fórmulas muestra la referencia y el valor',
-        await until(() => {
-          const inp = $('.qxs tbody tr .qxname input');
-          if (!inp) return false;
-          inp.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
-          return ($('#qxcellref') || {}).textContent === 'A2' &&
-            ($('#qxcellval') || {}).textContent === 'ANA PRUEBA UNO';
-        }), ($('#qxcellref') || {}).textContent);
-
       step('la Hoja 1 tiene 25 columnas de datos (+2 de control)',
         $$('.qxs thead th').length === 27, $$('.qxs thead th').length);
       step('los encabezados son los del Excel',

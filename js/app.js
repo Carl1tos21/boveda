@@ -127,6 +127,8 @@ const ACTIONS = {
   qxpage: el => QxActions.qxpage(el),
   qxpagesize: el => QxActions.qxpagesize(el),
   qxfilter: () => QxActions.qxfilter(),
+  qxsort: el => QxActions.qxsort(el),
+  qxfiltros: () => QxActions.qxfiltros(),
   qxreload: () => QxActions.qxreload(),
   qxexportxlsx: () => QxActions.qxexportxlsx(),
 

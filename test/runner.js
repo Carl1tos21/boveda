@@ -760,6 +760,32 @@
       step('editar una celda actualiza el modelo',
         qxData.empleados.find(e => e.nombre === 'ANA PRUEBA UNO').cargo === 'JEFA DE BODEGA');
 
+      /* Bloque C: filtros, orden por columnas y vista móvil en tarjetas */
+      step('los encabezados de la Hoja 1 son ordenables', !!$('.qxs thead [data-a="qxsort"]'));
+      step('hay filtros de departamento, quinquenio y trámite',
+        !!$('#qxfdepto') && !!$('#qxfquin') && !!$('#qxfgest'));
+      step('las celdas llevan etiqueta para la vista móvil', !!$('.qxs tbody td[data-h]'));
+
+      $('.qxs thead [data-a="qxsort"][data-k="0"]').click();
+      step('ordenar por nombre deja el encabezado marcado con flecha',
+        await until(() => {
+          const th = $('.qxs thead .qxsorth.on');
+          return !!th && th.textContent.indexOf('▲') >= 0;
+        }));
+      QX_ACTIONS.qxfiltros();
+      step('limpiar filtros quita el orden',
+        await until(() => !$('.qxs thead .qxsorth.on')));
+
+      const dsel = $('#qxfdepto');
+      dsel.value = 'DPADBOD';
+      dsel.dispatchEvent(new Event('change', { bubbles: true }));
+      step('filtrar por departamento deja solo esa área',
+        await until(() => $$('.qxs tbody tr').length === 1), $$('.qxs tbody tr').length);
+      step('y aparece el botón para limpiar los filtros', !!$('[data-a="qxfiltros"]'));
+      QX_ACTIONS.qxfiltros();
+      step('limpiar filtros devuelve todas las filas',
+        await until(() => $$('.qxs tbody tr').length === 2), $$('.qxs tbody tr').length);
+
       /* Bloque B: la ficha con la gestión del trámite y la constancia */
       $('.qxs tbody tr .qxopen').click();
       step('la ficha incluye la gestión del trámite',

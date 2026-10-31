@@ -376,6 +376,25 @@ img.pvsp{object-fit:contain}
 .qxchk input{width:18px;height:18px;flex:none;margin:0}
 .qxgbtn{padding:6px 11px;font-size:12.5px}
 
+/* --- Hoja de cálculo: orden por columnas y vista móvil en tarjetas --- */
+.qxsorth{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.qxsorth:hover{color:var(--ac)}
+.qxsorth.on{color:var(--ac);font-weight:800}
+.qxtools select{max-width:210px}
+@media(max-width:700px){
+  .qxgrid{max-height:none;overflow:visible;border:0;background:none}
+  .qxgrid table.qxs{display:block;min-width:0;width:100%}
+  .qxs thead{display:none}
+  .qxs tbody{display:block}
+  .qxs tbody tr{display:block;border:1px solid var(--bd);border-radius:12px;margin:0 0 10px;padding:6px 12px;background:var(--card);box-shadow:var(--sh)}
+  .qxs tbody td{display:flex;align-items:center;gap:10px;border:0;border-bottom:1px dashed var(--bd);padding:8px 0;min-width:0}
+  .qxs tbody td:last-child{border-bottom:0}
+  .qxs tbody td:before{content:attr(data-h);flex:none;width:102px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--mu)}
+  .qxs tbody td input,.qxs tbody td select{flex:1;min-width:0;max-width:none}
+  .qxs tbody td.qxn,.qxs tbody td.qxa{border-bottom:0;padding:2px 0}
+  .qxs tbody td.qxn:before,.qxs tbody td.qxa:before{display:none}
+}
+
 /* --- Resumen por departamento (Panel de RRHH) --- */
 .qxdep{overflow:auto;border:1px solid var(--bd);border-radius:14px;background:var(--card);box-shadow:var(--sh)}
 .qxdep table{width:100%;border-collapse:collapse;font-size:13px}

@@ -27,6 +27,10 @@ let qxPage = 0;          // página actual de la hoja de cálculo
 let qxPageSize = 50;     // filas por página
 let qxFilter = '';       // filtro de la hoja de cálculo
 let qxVencMeses = 6;     // plazo del panel de RRHH (3, 6 o 12 meses)
+let qxSort = { col: -1, dir: 1 };  // orden de la hoja activa (índice de columna)
+let qxFDepto = '';       // filtro de la hoja por departamento
+let qxFQuin = '';        // filtro de la hoja por estado del quinquenio
+let qxFGest = '';        // filtro de la hoja por estado del trámite
 
 const QX_QUIN_LABELS = ['1er Quinquenio', '2do Quinquenio', '3er Quinquenio'];
 const QX_ADEL_LABELS = ['Primer Adelanto', 'Segundo Adelanto', 'Tercer Adelanto', 'Cuarto Adelanto'];
@@ -1149,19 +1153,21 @@ function qxHoja1Cols() {
   return cols;
 }
 
-/** Lee el valor de una columna para un empleado. */
+/** Lee el valor de una columna para un empleado (a prueba de bases incompletas). */
 function qxColValue(e, c) {
   const t = c.qx;
   if (t === 'nombre') return e.nombre;
   if (t === 'fecha') return e.fechaIngreso;
   if (t === 'cargo') return e.cargo;
-  if (t === 'quin-estado') return e.quinquenios[c.i].estado;
-  if (t === 'quin-periodo') return e.quinquenios[c.i].periodo;
-  if (t === 'quin-visado') return e.quinquenios[c.i].visado;
-  if (t === 'adel-detalle') return e.adelantos[c.i][c.j || 0].detalle;
-  if (t === 'adel-periodo') return e.adelantos[c.i][c.j || 0].periodo;
-  if (t === 'adel-anios') return e.adelantos[c.i][c.j || 0].anios;
-  if (t === 'adel-visado') return e.adelantos[c.i][c.j || 0].visado;
+  const q = (e.quinquenios && e.quinquenios[c.i]) || {};
+  if (t === 'quin-estado') return q.estado || '';
+  if (t === 'quin-periodo') return q.periodo || '';
+  if (t === 'quin-visado') return q.visado || '';
+  const a = (e.adelantos && e.adelantos[c.i] && e.adelantos[c.i][c.j || 0]) || {};
+  if (t === 'adel-detalle') return a.detalle || '';
+  if (t === 'adel-periodo') return a.periodo || '';
+  if (t === 'adel-anios') return a.anios || '';
+  if (t === 'adel-visado') return a.visado || '';
   return e[t] == null ? '' : e[t];
 }
 
@@ -1180,13 +1186,76 @@ function qxCellHtml(e, c) {
 /** Empleados filtrados por el buscador de la hoja (ordenados por nombre). */
 function qxSheetList() {
   const t = qxNorm(qxFilter);
-  const all = (qxData && qxData.empleados) || [];
-  if (!t) return all;
-  return all.filter(e => {
-    const hay = [e.nombre, e.cargo, e.departamento, e.numPersona, e.codUbicacion].join(' ');
-    return qxNorm(hay).indexOf(t) >= 0;
-  });
+  let list = ((qxData && qxData.empleados) || []).slice();
+
+  /* Buscador de texto libre. */
+  if (t) {
+    list = list.filter(e => {
+      const hay = [e.nombre, e.cargo, e.departamento, e.numPersona, e.codUbicacion, e.sindicato, e.categoria].join(' ');
+      return qxNorm(hay).indexOf(t) >= 0;
+    });
+  }
+  /* Filtros por departamento, estado del quinquenio y estado del trámite. */
+  if (qxFDepto) list = list.filter(e => (e.departamento || '') === qxFDepto);
+  if (qxFQuin) list = list.filter(e => qxFQuin === 'sin'
+    ? !e.quinquenios.some(q => q.estado)
+    : e.quinquenios.some(q => q.estado === qxFQuin));
+  if (qxFGest) list = list.filter(e => qxFGest === 'sin'
+    ? !e.quinquenios.some(q => q.gestion)
+    : e.quinquenios.some(q => q.gestion === qxFGest));
+
+  /* Orden por la columna elegida (clic en el encabezado). */
+  const cols = qxSheet === 'hoja1' ? qxHoja1Cols() : QX_HOJA3_SHEET_COLS;
+  if (qxSort.col >= 0 && qxSort.col < cols.length) {
+    const c = cols[qxSort.col];
+    list.sort((a, b) => qxSort.dir * qxCmp(qxSortVal(a, c), qxSortVal(b, c)));
+  }
+  return list;
 }
+
+/** Compara dos valores de la hoja: números, fechas ISO o texto en español. */
+function qxCmp(a, b) {
+  const sa = String(a == null ? '' : a).trim();
+  const sb = String(b == null ? '' : b).trim();
+  const num = s => (/^-?[\d.,]+$/.test(s) ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : NaN);
+  const na = num(sa), nb = num(sb);
+  if (!isNaN(na) && !isNaN(nb)) return na - nb;
+  if (!sa) return 1;              // los vacíos, al final
+  if (!sb) return -1;
+  return qxNorm(sa).localeCompare(qxNorm(sb), 'es', { numeric: true, sensitivity: 'base' });
+}
+
+/** Valor de una columna para ordenar (la antigüedad se ordena por fecha de ingreso). */
+function qxSortVal(e, c) {
+  if (c.calc === 'ant') return e.fechaIngreso || '';
+  return qxColValue(e, c);
+}
+
+/** Departamentos distintos de la base (para el filtro de la hoja). */
+function qxDeptos() {
+  const set = {};
+  ((qxData && qxData.empleados) || []).forEach(e => {
+    const d = String(e.departamento || '').trim();
+    if (d) set[d] = 1;
+  });
+  return Object.keys(set).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/** Opciones de un filtro de la hoja, con «—» y una opción extra para los vacíos. */
+function qxFiltroOpts(vals, cur, vacio, sin) {
+  return '<option value=""' + (cur ? '' : ' selected') + '>' + esc(vacio) + '</option>' +
+    vals.map(o => '<option value="' + esc(o) + '"' + (cur === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+    '<option value="sin"' + (cur === 'sin' ? ' selected' : '') + '>' + esc(sin) + '</option>';
+}
+
+/** Repinta solo la tabla de la hoja (al ordenar, filtrar o paginar). */
+function qxGridRefresh() {
+  const wrap = document.getElementById('qxgridwrap');
+  if (wrap) wrap.innerHTML = qxGridAreaHtml();
+}
+
+/** ¿Hay algún filtro u orden activo en la hoja? */
+const qxFiltrosActivos = () => !!(qxFilter || qxFDepto || qxFQuin || qxFGest || qxSort.col >= 0);
 
 /** HTML de la tabla + paginador de la hoja activa. */
 function qxGridAreaHtml() {
@@ -1201,14 +1270,19 @@ function qxGridAreaHtml() {
   const from = qxPage * size;
   const rows = list.slice(from, from + size);
   const head = '<tr><th class="qxn">#</th>' +
-    cols.map(c => '<th' + (c.cls ? ' class="' + c.cls + '"' : '') + ' style="min-width:' + c.w + 'px">' + esc(c.h) + '</th>').join('') +
+    cols.map((c, k) => {
+      const on = qxSort.col === k;
+      return '<th' + (c.cls ? ' class="' + c.cls + '"' : '') + ' style="min-width:' + c.w + 'px">' +
+        '<button class="qxsorth' + (on ? ' on' : '') + '" data-a="qxsort" data-k="' + k + '" title="Ordenar por «' + esc(c.h) + '»">' +
+        esc(c.h) + (on ? (qxSort.dir > 0 ? ' ▲' : ' ▼') : '') + '</button></th>';
+    }).join('') +
     '<th class="qxa">·</th></tr>';
   const body = rows.map((e, idx) => {
-    const tds = cols.map(c => '<td' + (c.cls ? ' class="' + c.cls + '"' : '') + '>' + qxCellHtml(e, c) + '</td>').join('');
+    const tds = cols.map(c => '<td data-h="' + esc(c.h) + '"' + (c.cls ? ' class="' + c.cls + '"' : '') + '>' + qxCellHtml(e, c) + '</td>').join('');
     return '<tr data-id="' + esc(e.id) + '">' +
-      '<td class="qxn"><button class="qxopen" data-a="qxficha" data-id="' + esc(e.id) + '" data-from="' + qxSheet + '" title="Abrir ficha">' + (from + idx + 1) + '</button></td>' +
+      '<td class="qxn" data-h="#"><button class="qxopen" data-a="qxficha" data-id="' + esc(e.id) + '" data-from="' + qxSheet + '" title="Abrir ficha">' + (from + idx + 1) + '</button></td>' +
       tds +
-      '<td class="qxa"><button class="qxdel" data-a="qxdelrow" data-id="' + esc(e.id) + '" title="Eliminar trabajador">×</button></td>' +
+      '<td class="qxa" data-h="·"><button class="qxdel" data-a="qxdelrow" data-id="' + esc(e.id) + '" title="Eliminar trabajador">×</button></td>' +
       '</tr>';
   }).join('');
   const pager = '<div class="qxpager">' +
@@ -1238,15 +1312,29 @@ async function qxRenderSheet(sheet) {
     ${qxSheetTabs()}
     <div class="qxtools">
       <input type="text" id="qxfilter" placeholder="Filtrar por nombre, cargo, depto…" value="${esc(qxFilter)}" autocomplete="off">
+      <select id="qxfdepto">${qxFiltroOpts(qxDeptos(), qxFDepto, 'Departamento: todos', 'Sin departamento')}</select>
+      <select id="qxfquin">${qxFiltroOpts(['CUMPLE', 'NO CUMPLE'], qxFQuin, 'Quinquenio: todos', 'Sin definir')}</select>
+      <select id="qxfgest">${qxFiltroOpts(QX_GESTION_OPTS, qxFGest, 'Trámite: todos', 'Sin trámite')}</select>
+      ${qxFiltrosActivos() ? '<button class="btn" data-a="qxfiltros">Limpiar filtros</button>' : ''}
       <button class="btn p" data-a="qxadd">${ic('plus')}Añadir trabajador</button>
       <button class="btn" data-a="qximport">${ic('dl')}Importar Excel</button>
       <button class="btn" data-a="qxexportxlsx">${ic('dl')}Exportar .xlsx</button>
       <button class="btn" data-a="qxreload" title="Vuelve a aplicar la base incluida sin borrar tus ediciones">Recargar base</button>
     </div>
-    <div class="mu" style="margin:8px 0">Haz clic en cualquier celda para editarla; los cambios se guardan solos (cifrados). Pulsa el número de fila para abrir la ficha completa (con los 4 adelantos por gestión).</div>
+    <div class="mu" style="margin:8px 0">Haz clic en cualquier celda para editarla; los cambios se guardan solos (cifrados). Pulsa un encabezado para ordenar y el número de fila para abrir la ficha completa (con los 4 adelantos por gestión).</div>
     <div id="qxgridwrap">${qxGridAreaHtml()}</div>`;
   const fi = document.getElementById('qxfilter');
   if (fi) fi.oninput = () => qxFilterUpdate();
+  ['qxfdepto', 'qxfquin', 'qxfgest'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.onchange = () => {
+      qxFDepto = (document.getElementById('qxfdepto') || {}).value || '';
+      qxFQuin = (document.getElementById('qxfquin') || {}).value || '';
+      qxFGest = (document.getElementById('qxfgest') || {}).value || '';
+      qxPage = 0;
+      renderQx();          // hay que repintar también la barra (botón «Limpiar filtros»)
+    };
+  });
   qxBindGrid();
 }
 
@@ -1274,6 +1362,8 @@ function qxBindGrid() {
 function qxSwitchSheet(s) {
   if (['macro', 'venc', 'hoja1', 'hoja3'].indexOf(s) < 0) return;
   qxSheet = s; qxPage = 0; qxFilter = '';
+  qxFDepto = ''; qxFQuin = ''; qxFGest = '';
+  qxSort = { col: -1, dir: 1 };      // cada hoja tiene sus propias columnas
   renderQx();
 }
 
@@ -1282,8 +1372,7 @@ function qxFilterUpdate() {
   const inp = document.getElementById('qxfilter');
   if (inp) qxFilter = inp.value;
   qxPage = 0;
-  const wrap = document.getElementById('qxgridwrap');
-  if (wrap) wrap.innerHTML = qxGridAreaHtml();
+  qxGridRefresh();
 }
 
 /** Diálogo «Añadir trabajador». */
@@ -1783,6 +1872,20 @@ const QX_ACTIONS = {
   qxpage: el => { qxPage = +el.dataset.p; renderQx(); },
   qxpagesize: el => { qxPageSize = +el.dataset.n; qxPage = 0; renderQx(); },
   qxfilter: () => qxFilterUpdate(),
+  /* Orden por columnas y filtros de la hoja */
+  qxsort: el => {
+    const k = +el.dataset.k;
+    if (qxSort.col === k) qxSort.dir = -qxSort.dir;
+    else { qxSort.col = k; qxSort.dir = 1; }
+    qxPage = 0;
+    qxGridRefresh();
+  },
+  qxfiltros: () => {
+    qxFilter = ''; qxFDepto = ''; qxFQuin = ''; qxFGest = '';
+    qxSort = { col: -1, dir: 1 };
+    qxPage = 0;
+    renderQx();
+  },
   qxreload: () => qxSeedBase(),
   qxexportxlsx: () => qxExportXlsx(),
 

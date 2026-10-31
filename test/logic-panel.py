@@ -66,11 +66,13 @@ function isoHaceAnios(y, meses, dias) {
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
 function emp(id, nombre, dep, ingreso, estados) {
-  return { id: id, nombre: nombre, departamento: dep, cargo: 'Analista', fechaIngreso: ingreso,
-    quinquenios: [0, 1, 2].map(function (i) {
-      return { estado: (estados && estados[i]) || '', periodo: '', visado: '' };
-    }),
-    adelantos: [[], [], [], []] };
+  var e = qxEmptyEmpleado(nombre);
+  e.id = id;
+  e.departamento = dep;
+  e.cargo = 'Analista';
+  e.fechaIngreso = ingreso;
+  if (estados) estados.forEach(function (v, k) { e.quinquenios[k].estado = v || ''; });
+  return e;
 }
 
 qxData = { v: 1, origen: 'test', empleados: [
@@ -280,6 +282,78 @@ window.jspdf = __savedPdf;
 
 ok('las acciones de constancia existen',
   typeof QX_ACTIONS.qxconst === 'function' && typeof QX_ACTIONS.qxconstgen === 'function');
+qxSheet = 'macro';
+
+/* ---------- Bloque C: filtros y orden de la hoja de cálculo ---------- */
+qxData = { v: 1, origen: 'test', empleados: [
+  emp('p1', 'ANA ALTA', 'Nomina', '2015-03-01'),
+  emp('p2', 'BETO BAJA', 'Almacen', '2018-07-15'),
+  emp('p3', 'CARLA ALTA', 'Nomina', '2012-01-10'),
+  emp('p4', 'DIEGO MEDIA', 'Nomina', '2020-05-20')
+]};
+qxData.empleados[0].quinquenios[0].estado = 'CUMPLE';
+qxData.empleados[1].quinquenios[1].gestion = 'Pagado';
+qxData.empleados[2].quinquenios[0].gestion = 'Pendiente';
+qxSheet = 'hoja1';
+qxFilter = ''; qxFDepto = ''; qxFQuin = ''; qxFGest = ''; qxSort = { col: -1, dir: 1 };
+
+ok('sin filtros salen todos', qxSheetList().length === 4, qxSheetList().length);
+qxFDepto = 'Nomina';
+ok('el filtro por departamento funciona', qxSheetList().length === 3, qxSheetList().length);
+qxFDepto = '';
+qxFQuin = 'CUMPLE';
+ok('el filtro por estado del quinquenio funciona',
+  qxSheetList().length === 1 && qxSheetList()[0].id === 'p1', qxSheetList().length);
+qxFQuin = 'sin';
+ok('el filtro «sin definir» busca a los que no tienen ninguno',
+  qxSheetList().length === 3, qxSheetList().length);
+qxFQuin = '';
+qxFGest = 'Pagado';
+ok('el filtro por estado del trámite funciona',
+  qxSheetList().length === 1 && qxSheetList()[0].id === 'p2', qxSheetList().length);
+qxFGest = '';
+qxFilter = 'almacen';
+ok('el buscador de texto sigue funcionando', qxSheetList().length === 1, qxSheetList().length);
+qxFilter = '';
+
+qxSort = { col: 0, dir: 1 };      /* NOMBRE COMPLETO */
+ok('ordena por nombre A→Z', qxSheetList()[0].nombre === 'ANA ALTA', qxSheetList()[0].nombre);
+qxSort = { col: 0, dir: -1 };
+ok('ordena por nombre Z→A', qxSheetList()[0].nombre === 'DIEGO MEDIA', qxSheetList()[0].nombre);
+qxSort = { col: 1, dir: 1 };      /* FECHA DE INGRESO */
+ok('ordena por fecha de ingreso', qxSheetList()[0].id === 'p3', qxSheetList()[0].id);
+qxSort = { col: 3, dir: 1 };      /* ANTIGÜEDAD (columna calculada) */
+ok('ordena por una columna calculada', qxSheetList()[0].id === 'p3', qxSheetList()[0].id);
+qxSort = { col: 1, dir: -1 };
+ok('invertir el orden funciona', qxSheetList()[0].id === 'p4', qxSheetList()[0].id);
+qxSort = { col: -1, dir: 1 };
+
+ok('qcCmp ordena números de verdad', qxCmp('2', '10') < 0 && qxCmp('5000', '900') > 0);
+ok('qcCmp ordena fechas ISO', qxCmp('2020-01-01', '2021-01-01') < 0);
+ok('qcCmp ignora acentos', qxCmp('Ávila', 'Beto') < 0);
+ok('qcCmp manda los vacíos al final', qxCmp('', 'A') > 0 && qxCmp('A', '') < 0);
+
+/* El grid: encabezados ordenables y celdas con etiqueta para la vista móvil */
+qxData.empleados = qxData.empleados.slice(0, 3);
+var grid = { innerHTML: '' };
+__els['qxgridwrap'] = grid;
+qxPage = 0; qxPageSize = 50;
+qxGridRefresh();
+var gh = grid.innerHTML;
+ok('los encabezados son botones de orden', /data-a="qxsort" data-k="0"/.test(gh));
+ok('la tabla sigue teniendo 27 columnas', (gh.match(/<th[ >]/g) || []).length === 27,
+  (gh.match(/<th[ >]/g) || []).length);
+ok('las celdas llevan data-h para la vista móvil', /<td data-h="NOMBRE COMPLETO"/.test(gh));
+ok('el encabezado ordenado se marca con flecha', (function () {
+  qxSort = { col: 0, dir: 1 }; qxGridRefresh();
+  var r = /qxsorth on/.test(grid.innerHTML) && /▲/.test(grid.innerHTML);
+  qxSort = { col: 0, dir: -1 }; qxGridRefresh();
+  r = r && /▼/.test(grid.innerHTML);
+  qxSort = { col: -1, dir: 1 }; qxGridRefresh();
+  return r;
+})());
+ok('las acciones de orden y filtros existen',
+  typeof QX_ACTIONS.qxsort === 'function' && typeof QX_ACTIONS.qxfiltros === 'function');
 qxSheet = 'macro';
 
 JSON.stringify(out);

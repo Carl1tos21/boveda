@@ -490,14 +490,27 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   **vista móvil en tarjetas** y exportación a un `.xlsx` real. La pestaña MACRO es
   el buscador con la ficha completa.
 - **Panel RRHH** (el tablero diario del área):
+  - 📈 **Avance de la gestión**: barra de progreso con los quinquenios vencidos ya
+    marcados CUMPLE (en la base real: **166 de 419 = 40 %**) y los tramos de
+    antigüedad (5+/10+/15+/20+ años) y de datos sin completar.
+  - ⚡ **Acciones en lote**: casillas de selección en la lista de pendientes para
+    **marcar CUMPLE** o cambiar el trámite a varios a la vez (la base real trae
+    **253 quinquenios vencidos sin gestionar**, imposible de uno en uno).
   - ⏰ **Próximos vencimientos** (a 3, 6 o 12 meses), ordenados por urgencia.
   - ⚠️ **Pendientes de gestionar**: quinquenios ya vencidos que siguen sin cerrar.
   - 🔎 **Datos a revisar**: sin fecha de ingreso, `CUMPLE` marcado antes de
-    tiempo, adelantos sin detalle y **N.º de personal repetidos**.
+    tiempo, adelantos sin detalle, **N.º de personal repetidos**, **sin
+    N.º de personal**, **sin departamento**, **sin datos de la Hoja 3** y
+    **periodos que no cuadran con la fecha de ingreso**.
   - 📅 **Calendario de 12 meses**, exportable a `.xlsx`.
   - 🏢 **Resumen por departamento** y **PDF del panel** para la jefatura.
   - ⏰ **Aviso rojo en el menú** con el número de quinquenios vencidos sin
     gestionar, sin necesidad de entrar.
+- **Poner la base al día** (un botón): rellena los **periodos vacíos** con la
+  fecha de ingreso (en el Excel original **1.012 de 1.014 estaban vacíos**), copia
+  el **cargo** desde los datos de RRHH (Job Name de la Hoja 3, igual que el
+  `BUSCARV` del Excel) cuando esté vacío y **limpia los valores no válidos**
+  (por ejemplo `SI` sin tilde → `Sí`). Nunca pisa lo escrito a mano.
 - **Flujo de gestión del trámite**: cada quinquenio lleva
   `Pendiente → En proceso → Aprobado → Pagado / Rechazado` con **fecha de
   gestión, responsable y nota**, editable desde la ficha o desde el botón

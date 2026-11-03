@@ -323,6 +323,13 @@ img.pvsp{object-fit:contain}
 .fmt.fam-img{background:rgba(109,40,217,.11);color:#6d28d9}
 .fmt.fam-video,.fmt.fam-audio{background:rgba(15,118,110,.12);color:#0f766e}
 .fmt.fam-zip{background:rgba(161,98,7,.12);color:#a16207}
+.fmt.fam-link{background:rgba(3,105,161,.12);color:#0369a1}
+.fmt.fam-note{background:rgba(71,85,105,.12);color:#475569}
+
+/* --- Notas y enlaces: enlaces pulsables en la vista previa --- */
+.pvlink{color:var(--ac);text-decoration:underline;word-break:break-all}
+.pvlink:hover{opacity:.75}
+.pvtext .pvlink{font-weight:600}
 
 /* --- Carpetas: un poco más de aire --- */
 .fld{padding:14px 16px;background:var(--bg);transition:background .18s ease}

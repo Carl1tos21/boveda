@@ -667,6 +667,73 @@
         if (origCanShare) navigator.canShare = origCanShare;
       } catch (e) { }
 
+      /* -------- 14a-bis. Notas de texto y enlaces (cifrados) ---------------- */
+      step('el menú Agregar ofrece «Nota o enlace»', (function () {
+        openAddMenu();
+        return !!$('[data-a="newnota"]');
+      })());
+      $('[data-a="newnota"]').click();
+      step('se abre el formulario de nota',
+        await until(() => !!$('#nt') && !!$('#nl') && !!$('#nx') && !!$('#nc')));
+      $('#nt').value = 'ENLACE DE PRUEBA';
+      $('#nl').value = 'https://example.com/pagina';
+      $('#nx').value = 'Mi nota con un enlace https://example.org/otro y algo de texto.';
+      $('#nok').click();
+      step('la nota se guarda en la bóveda',
+        await until(() => docs.some(d => d.name === 'ENLACE DE PRUEBA' && d.link === 'https://example.com/pagina')));
+
+      const nota = docs.find(d => d.name === 'ENLACE DE PRUEBA');
+      step('la nota es un documento de texto cifrado',
+        nota.type === 'text/plain' && /\.txt$/.test(nota.file), nota.file + ' / ' + nota.type);
+      const textoNota = await (await getBlob(nota)).text();
+      step('el .txt lleva el enlace arriba y el texto debajo',
+        textoNota.indexOf('https://example.com/pagina') === 0 && /Mi nota con un enlace/.test(textoNota));
+      step('la bóveda la marca como LINK', badgeOf(nota) === 'LINK' && fileFamily(nota) === 'link');
+      step('la nota aparece en Mi bóveda', /ENLACE DE PRUEBA/.test($('#view').innerHTML));
+
+      step('los enlaces del texto se vuelven pulsables', (function () {
+        const h = linkify('mira https://example.com/x y sigue');
+        return /<a class="pvlink" href="https:\/\/example\.com\/x"/.test(h) && /target="_blank"/.test(h);
+      })());
+      step('linkify no se deja inyectar HTML', (function () {
+        const h = linkify('<img src=x onerror=alert(1)> https://ok.test/a');
+        return h.indexOf('<img') < 0 && /&lt;img/.test(h);
+      })());
+      step('linkify solo acepta http(s)', !/href="javascript/i.test(linkify('javascript:alert(1)')));
+
+      step('el visor ofrece «Abrir enlace»', await until(() => {
+        viewDoc(nota.id);
+        return !!$('.md') && !!$('.md [data-a="openlink"]');
+      }));
+      closeModal();
+      step('el panel lateral ofrece «Abrir enlace»', await until(() => {
+        openDocDrawer(nota.id);
+        return !!$('#drawer [data-a="openlink"]');
+      }));
+      step('el panel muestra el enlace en Detalles', await until(() => {
+        drawerInfoHtml(nota) && ($('#dbody').innerHTML = drawerInfoHtml(nota));
+        return /class="pvlink" href="https:\/\/example\.com\/pagina"/.test($('#dbody').innerHTML);
+      }));
+      closeDrawer();
+      step('editar la nota reabre su formulario',
+        await until(() => {
+          editDoc(nota.id);
+          return !!$('#nt') && $('#nt').value === 'ENLACE DE PRUEBA' && $('#nl').value === 'https://example.com/pagina';
+        }));
+      closeModal();
+      step('el formulario de nota valida los datos', await until(() => {
+        notaForm(null, true);
+        return !!$('#nok');
+      }));
+      $('#nok').click();                       /* sin título ni texto */
+      step('una nota vacía no se guarda', !docs.some(d => !d.name));
+      $('#nt').value = 'ENLACE MAL ESCRITO';
+      $('#nl').value = 'example.com';          /* sin http:// */
+      $('#nx').value = '';
+      $('#nok').click();
+      step('un enlace sin http:// se rechaza', !docs.some(d => d.name === 'ENLACE MAL ESCRITO'));
+      closeModal();
+
       /* -------- 14b. Quinquenios y Adelantos · hojas del Excel (MACRO/H1/H3) --- */
       // Base de prueba en memoria (no depende de la red ni de la base incluida).
       qxData = {

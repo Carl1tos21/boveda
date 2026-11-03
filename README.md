@@ -480,6 +480,14 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
 - **Escáner**: captura multipágina desde cámara o galería, **recorte en perspectiva**
   con 4 esquinas arrastrables (rectificación por homografía con interpolación
   bilineal), rotación y exportación a PDF con jsPDF.
+- **Notas de texto y enlaces**: desde **Agregar → Nota o enlace** se guarda
+  **texto y/o un link** cifrado en la bóveda, sin necesidad de tener un archivo.
+  Se guarda como un `.txt` normal (el enlace en la primera línea), así que sigue
+  siendo legible si lo descargas o lo compartes. Los **enlaces dentro del texto
+  salen pulsables** en la vista previa, y hay un botón **«Abrir enlace»** en el
+  visor y en el panel lateral. En la lista aparecen con la etiqueta **LINK** y se
+  pueden editar, mover de carpeta, marcar como favoritos o compartir como
+  cualquier otro documento.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
 - **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
   **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3), pensado para **Recursos

@@ -141,11 +141,15 @@ function folderHtml(name, items) {
 }
 
 /** Familia del archivo (define el color de la insignia de formato). */
+/** Etiqueta corta del documento: LINK si guarda un enlace, si no la extensión. */
+const badgeOf = d => (d.link ? 'LINK' : extOf(d));
+
 function fileFamily(d) {
   const t = String(d.type || '').toLowerCase();
   const name = String(d.file || d.name || '').toLowerCase();
   const ext = (name.match(/\.([a-z0-9]+)$/) || [, ''])[1];
   const has = a => a.indexOf(ext) >= 0;
+  if (d.link) return 'link';
   if (/^image\//.test(t) || has(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico'])) return 'img';
   if (ext === 'pdf' || /pdf/.test(t)) return 'pdf';
   if (has(['xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'csv', 'tsv']) || /spreadsheet|excel|csv/.test(t)) return 'sheet';
@@ -153,6 +157,7 @@ function fileFamily(d) {
   if (has(['pptx', 'ppt', 'odp']) || /presentation/.test(t)) return 'ppt';
   if (/^video\//.test(t) || has(['mp4', 'webm', 'mov', 'm4v', 'ogv'])) return 'video';
   if (/^audio\//.test(t) || has(['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'])) return 'audio';
+  if (/^text\//.test(t) || has(['txt', 'md', 'markdown', 'log', 'ini', 'conf', 'yml', 'yaml'])) return 'note';
   if (has(['zip', 'rar', '7z'])) return 'zip';
   return 'other';
 }
@@ -175,7 +180,7 @@ function relTime(ts) {
 
 function docRowHtml(d) {
   const t = d.fav ? 'Quitar de favoritos' : 'Marcar como favorito';
-  const ext = extOf(d);
+  const ext = badgeOf(d);
   const fam = fileFamily(d);
   const file = String(d.file || '');
   /* Si el nombre del archivo es igual al título, no se repite. */
@@ -199,7 +204,7 @@ function docRowHtml(d) {
 /** Modo cuadrícula (tarjetas). */
 function gridHtml(list) {
   return `<div class="grid">` + list.map(d => `<div class="card">
-    <div class="th" data-a="open" data-id="${d.id}" data-th="${d.id}"><span class="bd">${esc(extOf(d))}</span>${ic('file').replace('class="i"', 'class="i big"')}</div>
+    <div class="th" data-a="open" data-id="${d.id}" data-th="${d.id}"><span class="bd">${esc(badgeOf(d))}</span>${ic('file').replace('class="i"', 'class="i big"')}</div>
     <div class="ci"><b>${esc(d.name)}</b><div class="mu" style="margin-top:4px"><span class="tag">${esc(d.cat || 'General')}</span>${fmt(d.size)} · ${dateStr(d.date)}</div>${d.notes ? `<div class="mu" style="margin-top:4px">${esc(d.notes)}</div>` : ''}</div>
     <div class="acts">
       <button class="btn s" title="Abrir" data-a="open" data-id="${d.id}">${ic('eye')}</button>
@@ -254,7 +259,7 @@ async function openDocDrawer(id, tab) {
   wrap.innerHTML = `<div class="backdrop" data-a="drawerclose"></div>
     <aside class="drawer">
       <div class="dh">
-        <span class="tile" style="background:${tileColor(d.cat || 'General')}">${esc(extOf(d))}</span>
+        <span class="tile" style="background:${tileColor(d.cat || 'General')}">${esc(badgeOf(d))}</span>
         <b>${esc(d.name)}</b>
         <button class="btn s" data-a="drawerclose" title="Cerrar">✕</button>
       </div>
@@ -266,7 +271,8 @@ async function openDocDrawer(id, tab) {
         <div id="dbody">${activeTab === 'info' ? drawerInfoHtml(d) : `<div class="prev">${preview}</div>`}</div>
       </div>
       <div class="df">
-        <button class="btn p" data-a="share" data-id="${d.id}">${ic('share')}Compartir</button>
+        ${d.link ? `<button class="btn p" data-a="openlink" data-id="${d.id}">${ic('link')}Abrir enlace</button>` : ''}
+        <button class="btn${d.link ? '' : ' p'}" data-a="share" data-id="${d.id}">${ic('share')}Compartir</button>
         <button class="btn" data-a="dl" data-id="${d.id}">${ic('dl')}Descargar</button>
         <button class="btn" data-a="movedlg" data-id="${d.id}">${ic('folder')}Mover</button>
         <button class="btn" data-a="pdf" data-id="${d.id}">${ic('file')}PDF</button>
@@ -290,6 +296,7 @@ function drawerInfoHtml(d) {
   <div class="f"><label>Notas</label><textarea id="dno" rows="3">${esc(d.notes || '')}</textarea></div>
   <div class="f"><label class="ck"><input type="checkbox" id="dfav"${d.fav ? ' checked' : ''}>Marcar como favorito</label></div>
   <div class="row"><div class="l">Archivo</div><div class="v">${esc(d.file || '—')}</div></div>
+  ${d.link ? `<div class="row"><div class="l">Enlace</div><div class="v"><a class="pvlink" href="${esc(d.link)}" target="_blank" rel="noopener noreferrer">${esc(d.link)}</a></div></div>` : ''}
   <div class="row"><div class="l">Tipo</div><div class="v">${esc(d.type || '—')}</div></div>
   <div class="row"><div class="l">Tamaño</div><div class="v">${fmt(d.size)}</div></div>
   <div class="row"><div class="l">Guardado</div><div class="v">${dateStr(d.date)}</div></div>

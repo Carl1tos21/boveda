@@ -16,7 +16,7 @@ const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const MAX_IMAGE_SIDE = 2400;        // lado máximo al escanear (ahorra memoria/PDF)
 const THUMB_MAX = 320;              // lado máximo de las miniaturas
-const DEFAULT_CATS = ['General', 'Personal', 'Trabajo', 'Salud', 'Estudios', 'Escaneos'];
+const DEFAULT_CATS = ['General', 'Personal', 'Trabajo', 'Salud', 'Estudios', 'Escaneos', 'Notas', 'Enlaces'];
 
 /* Rutas SVG (viewBox 0 0 24 24, trazo). */
 const ICONS = {
@@ -57,5 +57,7 @@ const ICONS = {
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.4 2.5c-.6.2-.9.7-.9 1.3v.4M12 17h.01"/>',
   paperclip: '<path d="M20 11.5 12 19.5a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7-7"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/>',
-  weight: '<path d="M4 18h16M7 18l2.5-9M17 18l-2.5-9M12 5v4M9 9h6"/>'
+  weight: '<path d="M4 18h16M7 18l2.5-9M17 18l-2.5-9M12 5v4M9 9h6"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  note: '<path d="M4 4h16v12l-4 4H4z"/><path d="M20 16h-4v4"/><path d="M8 9h8M8 13h5"/>'
 };

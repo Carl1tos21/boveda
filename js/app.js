@@ -14,6 +14,8 @@ const ACTIONS = {
   pick: el => { const i = $('#' + el.dataset.src); if (i) { i.value = ''; i.click(); } },
   view: el => viewDoc(el.dataset.id),
   open: el => openDocDrawer(el.dataset.id),
+  newnota: () => notaForm(null, true),
+  openlink: el => openLink(el.dataset.id),
   dl: el => dlDoc(el.dataset.id),
   pr: el => printDoc(el.dataset.id),
   ed: el => editDoc(el.dataset.id),

@@ -6,9 +6,10 @@
 
 /** Menú de origen al pulsar "Agregar". */
 function openAddMenu() {
-  openModal(`<h2>Agregar documento</h2>
-  <div class="mu" style="margin-bottom:14px">Elige de dónde tomar el documento</div>
+  openModal(`<h2>Agregar</h2>
+  <div class="mu" style="margin-bottom:14px">Elige qué quieres guardar</div>
   <div style="display:grid;gap:10px">
+    <button class="btn" data-a="newnota" style="justify-content:flex-start">${ic('note')}Nota o enlace — <b>guarda texto y links</b></button>
     <button class="btn" data-a="pick" data-src="fi" style="justify-content:flex-start">${ic('up')}Subir archivos — <b>puedes elegir varios a la vez</b></button>
     <button class="btn" data-a="pick" data-src="cam" style="justify-content:flex-start">${ic('cam')}Tomar foto con la cámara</button>
     <button class="btn" data-a="pick" data-src="gal" style="justify-content:flex-start">${ic('eye')}Elegir de la galería</button>
@@ -119,6 +120,98 @@ function docForm(d, isNew) {
   };
 }
 
+/* ------------------- Notas de texto y enlaces (cifrados) ---------------- */
+
+/**
+ * Convierte los enlaces http(s) de un texto en enlaces pulsables.
+ * Se escapa primero, así que es seguro ante HTML pegado.
+ */
+function linkify(text) {
+  return esc(text).replace(/(https?:\/\/[^\s<]+)/g, m => {
+    const url = m.replace(/[.,;:!?)\]]+$/, '');
+    const cola = m.slice(url.length);
+    return '<a class="pvlink" href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>' + cola;
+  });
+}
+
+/** Nombre de archivo seguro para una nota. */
+const notaFile = t => (String(t || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').trim().slice(0, 60) || 'nota') + '.txt';
+
+/**
+ * Formulario de una nota o enlace. Se guarda cifrado como documento de texto,
+ * así aparece en «Mi bóveda» como cualquier otro documento.
+ */
+async function notaForm(d, isNew) {
+  const cats = Array.from(new Set(DEFAULT_CATS.concat(folders).concat(docs.map(x => x.cat).filter(c => c && c !== '_qx'))));
+  let texto = '';
+  if (d && d._eb) {
+    try { texto = await (await getBlob(d)).text(); } catch (e) { texto = ''; }
+  }
+
+  openModal(`<h2>${isNew ? 'Nueva nota o enlace' : 'Editar nota'}</h2>
+  <div class="f"><label>Título</label><input id="nt" value="${esc(d ? d.name : '')}" placeholder="Ej: Enlace del banco"></div>
+  <div class="f"><label>Enlace (opcional)</label><input id="nl" type="url" inputmode="url" value="${esc(d ? d.link || '' : '')}" placeholder="https://..."></div>
+  <div class="f"><label>Texto (opcional)</label><textarea id="nx" rows="8" placeholder="Escribe o pega aquí lo que quieras guardar…">${esc(texto)}</textarea></div>
+  <div class="f"><label>Carpeta</label><input id="nc" list="nclist" value="${esc(d ? (d.cat || 'Notas') : 'Notas')}">
+    <datalist id="nclist">${cats.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist></div>
+  <div class="mu">Se guarda cifrado con tu contraseña. Los enlaces que queden en el texto se podrán pulsar.</div>
+  <div class="fx"><button class="btn" data-a="close">Cancelar</button>
+    <button class="btn p" id="nok">${ic('ok')}Guardar</button></div>`);
+
+  const t = $('#nt');
+  if (t) t.focus();
+  const ok = $('#nok');
+  if (ok) ok.onclick = () => notaSave(d, isNew);
+}
+
+/** Guarda (cifrada) la nota o el enlace como documento de texto. */
+async function notaSave(d, isNew) {
+  const nombre = (($('#nt') || {}).value || '').trim();
+  const enlace = (($('#nl') || {}).value || '').trim();
+  const texto = (($('#nx') || {}).value || '');
+  const carpeta = ((($('#nc') || {}).value || '').trim()) || 'Notas';
+
+  if (!nombre) return toast('Escribe un título');
+  if (!enlace && !texto.trim()) return toast('Escribe un enlace o algo de texto');
+  if (enlace && !/^https?:\/\//i.test(enlace)) return toast('El enlace debe empezar por http:// o https://');
+
+  /* El .txt lleva el enlace en la primera línea: sigue siendo legible al
+     descargarlo o compartirlo, sin depender de la app. */
+  const cuerpo = (enlace ? enlace + '\n\n' : '') + texto.replace(/^\n+/, '');
+  const blob = new Blob([cuerpo], { type: 'text/plain' });
+
+  if (isNew) {
+    const nd = {
+      id: uid(), date: Date.now(), name: nombre, cat: carpeta, notes: '',
+      file: notaFile(nombre), type: 'text/plain', link: enlace, _b: blob
+    };
+    await saveDoc(nd, key, true);
+    closeModal();
+    await load();
+    toast(enlace ? 'Enlace guardado ✅' : 'Nota guardada ✅');
+  } else {
+    const o = docs.find(x => x.id === d.id);
+    if (!o) return;
+    o.name = nombre;
+    o.cat = carpeta;
+    o.link = enlace;
+    o.type = 'text/plain';
+    o._b = blob;
+    await saveDoc(o, key, true);
+    closeModal();
+    closeDrawer();
+    await load();
+    toast('Nota actualizada ✅');
+  }
+}
+
+/** Abre el enlace guardado en una nota (pestaña nueva). */
+function openLink(id) {
+  const d = docs.find(x => x.id === id);
+  if (!d || !d.link) return toast('Esta nota no tiene enlace');
+  window.open(d.link, '_blank', 'noopener,noreferrer');
+}
+
 /** Abre el visor de un documento (imagen, PDF, texto, hoja de cálculo, Office…). */
 async function viewDoc(id) {
   const d = docs.find(x => x.id === id);
@@ -135,6 +228,7 @@ async function viewDoc(id) {
       <div class="mu" style="flex:1;text-align:left;align-self:center">
         ${d.notes ? esc(d.notes) + ' · ' : ''}Descargar conserva tu archivo original (${esc(extOf(d))})
       </div>
+      ${d.link ? `<button class="btn p" data-a="openlink" data-id="${d.id}">${ic('link')}Abrir enlace</button>` : ''}
       ${isSheet(d)
         ? `<button class="btn p" data-a="xlsonline" data-id="${d.id}">${ic('cloud')}Excel Online</button>
            <button class="btn" data-a="xlsopen" data-id="${d.id}">${ic('dl')}Abrir en Excel</button>`
@@ -152,6 +246,8 @@ function editDoc(id) {
   const d = docs.find(x => x.id === id);
   if (!d) return;
   closeDrawer();
+  /* Las notas y los archivos de texto se editan con su propio formulario. */
+  if (d.link || previewKind(d) === 'text') return notaForm(d, false);
   docForm(d, false);
 }
 
@@ -233,7 +329,7 @@ async function previewBody(d) {
   if (kind === 'video') return `<video src="${pvURL(b)}" controls playsinline preload="metadata"></video>`;
   if (kind === 'audio') return `<div class="pvaudio"><audio src="${pvURL(b)}" controls preload="metadata"></audio></div>`;
   if (kind === 'pdf') return `<iframe src="${pvURL(b)}" title="PDF"></iframe>`;
-  if (kind === 'text') return `<div class="pvtext">${esc((await b.text()).slice(0, 300000))}</div>`;
+  if (kind === 'text') return `<div class="pvtext">${linkify((await b.text()).slice(0, 300000))}</div>`;
   if (kind === 'sheet') return await sheetPreviewHtml(b);
   if (kind === 'office') return await officePreviewHtml(b, d);
   return null;

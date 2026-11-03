@@ -505,7 +505,7 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   instante. La papelera va incluida en los respaldos y se limpia sola.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
 - **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
-  **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3), pensado para **Recursos
+  **5 pestañas** (MACRO · Panel RRHH · **Adelantos** · Hoja 1 · Hoja 3), pensado para **Recursos
   Humanos**. La Hoja 1 y la Hoja 3 son una **hoja de cálculo editable** dentro de
   la app: buscador, **filtros por departamento, estado del quinquenio y estado del
   trámite**, **orden por cualquier columna** (clic en el encabezado), edición de
@@ -534,6 +534,10 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   el **cargo** desde los datos de RRHH (Job Name de la Hoja 3, igual que el
   `BUSCARV` del Excel) cuando esté vacío y **limpia los valores no válidos**
   (por ejemplo `SI` sin tilde → `Sí`). Nunca pisa lo escrito a mano.
+- **Adelantos** (pestaña propia): resumen con **cuántos adelantos hay, cuántos años se
+  han adelantado y cuántos trabajadores**, buscador, listado editable con detalle,
+  periodo, años y visado, **ranking de quiénes más han adelantado** y
+  **exportación a `.xlsx`**. Es la parte que el Excel original tenía totalmente vacía.
 - **Flujo de gestión del trámite**: cada quinquenio lleva
   `Pendiente → En proceso → Aprobado → Pagado / Rechazado` con **fecha de
   gestión, responsable y nota**, editable desde la ficha o desde el botón

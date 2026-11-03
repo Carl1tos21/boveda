@@ -147,7 +147,7 @@ ok('el filtro de plazo pinta 3/6/12 meses',
   /3 meses/.test(html) && /6 meses/.test(html) && /12 meses/.test(html));
 ok('6 meses viene marcado por defecto', /class="qxps on" data-a="qxvencmes" data-n="6"/.test(html));
 ok('hay boton de imprimir panel', /data-a="qxvencprint"/.test(html));
-ok('las 4 pestanas estan', (html.match(/data-a="qxsheet"/g) || []).length === 4,
+ok('las 5 pestanas estan', (html.match(/data-a="qxsheet"/g) || []).length === 5,
   (html.match(/data-a="qxsheet"/g) || []).length);
 ok('cada fila enlaza a la ficha', /data-a="qxficha" data-id="b" data-from="venc"/.test(html));
 
@@ -597,6 +597,63 @@ ok('las acciones nuevas existen',
   typeof QX_ACTIONS.qxselall === 'function' && typeof QX_ACTIONS.qxselcumple === 'function');
 qxSheet = 'macro';
 qxSel = {};
+
+/* ---------- Módulo de Adelantos ---------- */
+qxData = { v: 1, origen: 'test', empleados: [
+  emp('a1', 'ANA ADELANTO', 'Nomina', '2010-06-15'),
+  emp('a2', 'BETO ADELANTO', 'Almacen', '2020-06-15')
+]};
+ok('sin adelantos la lista esta vacia', qxAdelList().length === 0);
+ok('los totales salen a cero', qxAdelStats().total === 0 && qxAdelStats().anios === 0);
+
+qxData.empleados[0].adelantos[0][0] = { detalle: 'Adelanto de vacaciones', periodo: '2024-2025', anios: '1', visado: 'Sí' };
+qxData.empleados[0].adelantos[1][2] = { detalle: 'Emergencia', periodo: '', anios: '2', visado: '' };
+qxData.empleados[1].adelantos[0][0] = { detalle: 'Estudios', periodo: '', anios: '0.5', visado: 'No' };
+
+ok('la lista recoge los adelantos', qxAdelList().length === 3, qxAdelList().length);
+var sa = qxAdelStats();
+ok('cuenta los adelantos', sa.total === 3, sa.total);
+ok('suma los anios adelantados', sa.anios === 3.5, sa.anios);
+ok('cuenta los trabajadores con adelantos', sa.empleados === 2, sa.empleados);
+ok('cuenta los que no tienen visado',
+  sa.sinVisado === 1 && sa.porVisado === 2, sa.sinVisado + '/' + sa.porVisado);
+
+qxAdelBuscar = 'ana';
+ok('el buscador filtra por trabajador', qxAdelFiltrados().length === 2, qxAdelFiltrados().length);
+qxAdelBuscar = 'estudios';
+ok('el buscador filtra por detalle', qxAdelFiltrados().length === 1, qxAdelFiltrados().length);
+qxAdelBuscar = 'almacen';
+ok('el buscador filtra por departamento', qxAdelFiltrados().length === 1, qxAdelFiltrados().length);
+qxAdelBuscar = 'zzz';
+ok('sin coincidencias devuelve vacio', qxAdelFiltrados().length === 0);
+qxAdelBuscar = '';
+
+ok('el dialogo de adelanto pide todos los datos', (function () {
+  qxAdelDialog(null, 0, 0);
+  return /qad-emp/.test(__modal) && /qad-k/.test(__modal) && /qad-j/.test(__modal) &&
+    /qad-det/.test(__modal) && /qad-per/.test(__modal) && /qad-an/.test(__modal) && /qad-vis/.test(__modal);
+})());
+ok('el dialogo de edicion no vuelve a pedir el trabajador', (function () {
+  qxAdelDialog('a1', 0, 0);
+  return !/qad-emp/.test(__modal) && /Adelanto de vacaciones/.test(__modal);
+})());
+
+/* La pestaña se pinta */
+qxSheet = 'adel';
+qxRenderAdel();
+var hAd = __view.innerHTML;
+ok('la pestana de adelantos se pinta', /Adelantos/.test(hAd) && /class="qxcards"/.test(hAd));
+ok('la pestana lista los adelantos', /ANA ADELANTO/.test(hAd) && /Adelanto de vacaciones/.test(hAd));
+ok('la pestana muestra el ranking', /Quiénes más han adelantado/.test(hAd));
+ok('la pestana tiene boton de registrar', /data-a="qxadelnew"/.test(hAd));
+ok('la pestana tiene exportacion', /data-a="qxadelexport"/.test(hAd));
+ok('la pestana tiene 5 solapas', (hAd.match(/class="qxtab[ "]/g) || []).length === 5,
+  (hAd.match(/class="qxtab[ "]/g) || []).length);
+qxSheet = 'macro';
+
+ok('las acciones de adelantos existen',
+  typeof QX_ACTIONS.qxadelnew === 'function' && typeof QX_ACTIONS.qxadelsave === 'function' &&
+  typeof QX_ACTIONS.qxadeldel === 'function' && typeof QX_ACTIONS.qxadelexport === 'function');
 
 JSON.stringify(out);
 """

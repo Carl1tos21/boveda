@@ -27,6 +27,7 @@ let qxPage = 0;          // página actual de la hoja de cálculo
 let qxPageSize = 50;     // filas por página
 let qxFilter = '';       // filtro de la hoja de cálculo
 let qxVencMeses = 6;     // plazo del panel de RRHH (3, 6 o 12 meses)
+let qxAdelBuscar = '';   // buscador del módulo de adelantos
 let qxSort = { col: -1, dir: 1 };  // orden de la hoja activa (índice de columna)
 let qxFDepto = '';       // filtro de la hoja por departamento
 let qxFQuin = '';        // filtro de la hoja por estado del quinquenio
@@ -977,6 +978,224 @@ function qxSelBar() {
   </div>`;
 }
 
+/* ==================== Adelantos (módulo dedicado) ====================== */
+
+/** Todos los adelantos con datos de la base, con su empleado y su hueco. */
+function qxAdelList() {
+  const out = [];
+  ((qxData && qxData.empleados) || []).forEach(e => {
+    (e.adelantos || []).forEach((bloque, k) => {
+      (bloque || []).forEach((a, j) => {
+        if (a && (a.detalle || a.periodo || a.anios || a.visado)) out.push({ e, k, j, a });
+      });
+    });
+  });
+  return out;
+}
+
+/** Totales de adelantos: cuántos hay, años adelantados y quiénes. */
+function qxAdelStats() {
+  const l = qxAdelList();
+  const emps = new Set();
+  let anios = 0, sinVisado = 0, porVisado = 0;
+  l.forEach(x => {
+    emps.add(x.e.id);
+    const n = parseFloat(String(x.a.anios || '').replace(',', '.'));
+    if (!isNaN(n)) anios += n;
+    if (!x.a.visado) sinVisado++;
+    else porVisado++;
+  });
+  return { total: l.length, anios, empleados: emps.size, sinVisado, porVisado };
+}
+
+/** Adelantos filtrados por el buscador del módulo. */
+function qxAdelFiltrados() {
+  const t = qxNorm(qxAdelBuscar);
+  const l = qxAdelList();
+  if (!t) return l;
+  return l.filter(x => {
+    const hay = [x.e.nombre, x.e.numPersona, x.e.departamento,
+      x.a.detalle, x.a.periodo, x.a.anios, x.a.visado].join(' ');
+    return qxNorm(hay).indexOf(t) >= 0;
+  });
+}
+
+/** Diálogo para registrar o editar un adelanto. */
+function qxAdelDialog(id, k, j) {
+  const emps = (qxData && qxData.empleados) || [];
+  const e = id ? emps.find(x => x.id === id) : null;
+  const a = (e && e.adelantos[k] && e.adelantos[k][j]) || { detalle: '', periodo: '', anios: '', visado: '' };
+
+  openModal(`<h2>${id ? 'Editar adelanto' : 'Registrar adelanto'}</h2>
+    <div class="mu" style="margin-bottom:12px">${e ? esc(e.nombre) : 'Elige el trabajador y en qué gestión va el adelanto.'}</div>
+    ${id ? '' : `<div class="f"><label>Trabajador</label>
+      <input id="qad-emp" list="qademps" placeholder="Escribe el nombre…" autocomplete="off">
+      <datalist id="qademps">${emps.map(x => `<option value="${esc(x.nombre)}"></option>`).join('')}</datalist></div>`}
+    <div class="f"><label>Gestión (quinquenio)</label>
+      <select id="qad-k">${QX_QUIN_LABELS.map((l, i) => `<option value="${i}"${i === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+    <div class="f"><label>N.º de adelanto</label>
+      <select id="qad-j">${QX_ADEL_LABELS.map((l, i) => `<option value="${i}"${i === j ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+    <div class="f"><label>Detalle</label><input id="qad-det" value="${esc(a.detalle)}" placeholder="Motivo o concepto del adelanto"></div>
+    <div class="f"><label>Periodo</label><input id="qad-per" value="${esc(a.periodo)}" placeholder="dd/mm/aaaa - dd/mm/aaaa"></div>
+    <div class="f"><label>Años</label><input id="qad-an" value="${esc(a.anios)}" inputmode="numeric" placeholder="Ej: 1"></div>
+    <div class="f"><label>Estado del visado</label>
+      <select id="qad-vis">${qxSelOpts(QX_VISADO_OPTS, a.visado, '—')}</select></div>
+    <div class="mu">Pulsa <b>Enter</b> para guardar.</div>
+    <div class="fx"><button class="btn" data-a="close">Cancelar</button>
+      <button class="btn p" data-a="qxadelsave" data-id="${esc(id || '')}" data-k="${k}" data-j="${j}">${ic('ok')}Guardar</button></div>`);
+}
+
+/** Guarda el adelanto del diálogo. */
+async function qxAdelSave(id, k, j) {
+  const val = s => { const el = document.getElementById(s); return el ? String(el.value || '').trim() : ''; };
+  let e = id ? ((qxData && qxData.empleados) || []).find(x => x.id === id) : null;
+
+  if (!e) {
+    const nombre = val('qad-emp');
+    if (!nombre) return toast('Escribe el nombre del trabajador');
+    e = ((qxData && qxData.empleados) || []).find(x => qxNorm(x.nombre) === qxNorm(nombre));
+    if (!e) return toast('No encontré ese trabajador en la base');
+  }
+  const kk = id ? k : (parseInt(val('qad-k'), 10) || 0);
+  const jj = id ? j : (parseInt(val('qad-j'), 10) || 0);
+  const destino = e.adelantos[kk][jj];
+  destino.detalle = val('qad-det');
+  destino.periodo = val('qad-per');
+  destino.anios = val('qad-an');
+  destino.visado = qxVisado(val('qad-vis'));
+
+  if (!destino.detalle && !destino.periodo && !destino.anios && !destino.visado) {
+    return toast('Escribe al menos el detalle o los años');
+  }
+  qxHist('Adelanto', e.nombre + ' · ' + QX_QUIN_LABELS[kk] + ' · ' + QX_ADEL_LABELS[jj] +
+    (destino.anios ? ' · ' + destino.anios + ' año(s)' : ''));
+  await qxPersist();
+  closeModal();
+  renderQx();
+  toast('Adelanto guardado ✅');
+}
+
+/** Quita un adelanto (pide confirmación). */
+async function qxAdelDel(id, k, j) {
+  const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
+  if (!e || !e.adelantos[k] || !e.adelantos[k][j]) return;
+  const ok = await confirmDialog('Quitar adelanto',
+    'Se borrarán los datos de «' + QX_ADEL_LABELS[j] + '» de ' + QX_QUIN_LABELS[k] + ' de ' + e.nombre + '.', 'Quitar');
+  if (!ok) return;
+  e.adelantos[k][j] = { detalle: '', periodo: '', anios: '', visado: '' };
+  qxHist('Adelanto quitado', e.nombre + ' · ' + QX_QUIN_LABELS[k] + ' · ' + QX_ADEL_LABELS[j]);
+  await qxPersist();
+  renderQx();
+  toast('Adelanto quitado');
+}
+
+/** Exporta el listado de adelantos a un .xlsx real. */
+function qxAdelExportXlsx() {
+  if (!window.XLSX) return toast('Falta la librería de Excel');
+  const aoa = [['TRABAJADOR', 'N.º DE PERSONAL', 'DEPARTAMENTO', 'GESTIÓN', 'ADELANTO', 'DETALLE', 'PERIODO', 'AÑOS', 'VISADO']];
+  qxAdelFiltrados().forEach(x => aoa.push([
+    x.e.nombre, x.e.numPersona || '', x.e.departamento || '',
+    QX_QUIN_LABELS[x.k], QX_ADEL_LABELS[x.j], x.a.detalle || '', x.a.periodo || '', x.a.anios || '', x.a.visado || ''
+  ]));
+  const st = qxAdelStats();
+  aoa.push([]);
+  aoa.push(['TOTAL', st.total + ' adelanto(s)', st.empleados + ' trabajador(es)', '', '', '', '', st.anios + ' año(s)', '']);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 32 }, { wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 16 },
+    { wch: 28 }, { wch: 22 }, { wch: 7 }, { wch: 10 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Adelantos');
+  XLSX.writeFile(wb, 'ADELANTOS_QUINQUENIOS.xlsx');
+  toast('Adelantos exportados ✅');
+}
+
+/** Pestaña «Adelantos»: resumen, listado editable y exportación. */
+function qxRenderAdel() {
+  const v = $('#view');
+  const st = qxAdelStats();
+  const list = qxAdelFiltrados();
+
+  const filas = list.map(x => `<tr>
+      <td><button class="qxopen" data-a="qxficha" data-id="${esc(x.e.id)}" data-from="adel" title="Abrir la ficha">${esc(x.e.nombre)}</button></td>
+      <td class="mu">${esc(QX_QUIN_LABELS[x.k])}</td>
+      <td class="mu">${QX_ADEL_LABELS[x.j]}</td>
+      <td>${esc(qxDash(x.a.detalle))}</td>
+      <td class="mu">${esc(qxDash(x.a.periodo))}</td>
+      <td class="mu">${esc(qxDash(x.a.anios))}</td>
+      <td>${x.a.visado ? '<span class="qxbadge ok">' + esc(x.a.visado) + '</span>' : '<span class="qxbadge">sin visado</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn qxgbtn" data-a="qxadeled" data-id="${esc(x.e.id)}" data-k="${x.k}" data-j="${x.j}" title="Editar este adelanto">${ic('ed')}</button>
+        <button class="btn qxgbtn dg" data-a="qxadeldel" data-id="${esc(x.e.id)}" data-k="${x.k}" data-j="${x.j}" title="Quitar este adelanto">×</button>
+      </td>
+    </tr>`).join('');
+
+  /* Totales por trabajador (los que más años han adelantado). */
+  const porEmp = new Map();
+  qxAdelList().forEach(x => {
+    const g = porEmp.get(x.e.id) || { e: x.e, n: 0, anios: 0 };
+    g.n++;
+    const num = parseFloat(String(x.a.anios || '').replace(',', '.'));
+    if (!isNaN(num)) g.anios += num;
+    porEmp.set(x.e.id, g);
+  });
+  const ranking = [...porEmp.values()].sort((a, b) => b.anios - a.anios || b.n - a.n).slice(0, 10);
+
+  v.innerHTML = `
+    <div class="vhead"><h1>Adelantos</h1><span class="sp"></span><span id="qxstatus" class="mu"></span></div>
+    ${qxSheetTabs()}
+    <div class="mu" style="margin:10px 0 12px">Los adelantos que pide el trabajador sobre su quinquenio. Se guardan en la misma base cifrada y aparecen también en la Hoja 1.</div>
+
+    <div class="qxcards">
+      <div class="qxc amber">
+        <span class="ico">${ic('dl')}</span>
+        <span class="tx"><span class="num">${st.total}</span>
+        <span class="lab">adelanto${st.total === 1 ? '' : 's'} registrado${st.total === 1 ? '' : 's'}</span></span>
+      </div>
+      <div class="qxc teal">
+        <span class="ico">${ic('clock')}</span>
+        <span class="tx"><span class="num">${st.anios}</span>
+        <span class="lab">año${st.anios === 1 ? '' : 's'} adelantado${st.anios === 1 ? '' : 's'} en total</span></span>
+      </div>
+      <div class="qxc blue">
+        <span class="ico">${ic('id')}</span>
+        <span class="tx"><span class="num">${st.empleados}</span>
+        <span class="lab">trabajador${st.empleados === 1 ? '' : 'es'} con adelantos</span></span>
+      </div>
+    </div>
+
+    <div class="qxtools">
+      <input type="text" id="qxadelfilter" placeholder="Buscar por trabajador, detalle o periodo…" value="${esc(qxAdelBuscar)}" autocomplete="off">
+      <span class="sp"></span>
+      <button class="btn p" data-a="qxadelnew">${ic('plus')}Registrar adelanto</button>
+      <button class="btn" data-a="qxadelexport">${ic('dl')}Exportar .xlsx</button>
+    </div>
+
+    ${list.length
+      ? `<div class="qxgrid" style="max-height:none"><table class="qxs"><thead><tr>
+          <th style="min-width:200px">TRABAJADOR</th><th>GESTIÓN</th><th>ADELANTO</th>
+          <th style="min-width:180px">DETALLE</th><th style="min-width:150px">PERIODO</th>
+          <th>AÑOS</th><th>VISADO</th><th>·</th></tr></thead>
+          <tbody>${filas}</tbody></table></div>
+        <div class="mu" style="margin-top:8px">${list.length} de ${st.total} adelanto(s)${qxAdelBuscar ? ' (filtrado)' : ''}${st.sinVisado ? ' · ' + st.sinVisado + ' sin visado' : ''}</div>`
+      : '<div class="empty">' + ic('dl') + '<br>' +
+        (qxAdelBuscar ? 'Ningún adelanto coincide con la búsqueda.' :
+          'Todavía no hay adelantos registrados.<br>Pulsa <b>Registrar adelanto</b> para añadir el primero.') + '</div>'}
+
+    ${ranking.length ? `
+      <div class="pn" style="margin-top:14px">
+        <h2 style="font-size:15px;margin:0 0 8px">🏆 Quiénes más han adelantado</h2>
+        <div class="qxdep"><table>
+          <thead><tr><th>Trabajador</th><th class="n">Adelantos</th><th class="n">Años</th></tr></thead>
+          <tbody>${ranking.map(g => `<tr>
+            <td>${esc(g.e.nombre)}</td><td class="n">${g.n}</td><td class="n">${g.anios}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>` : ''}`;
+
+  const fi = document.getElementById('qxadelfilter');
+  if (fi) fi.oninput = () => { qxAdelBuscar = fi.value; qxRenderAdel(); };
+}
+
 /** Pinta el «Panel de RRHH»: vencimientos, pendientes y datos a revisar. */
 function qxRenderVenc() {
   const v = $('#view');
@@ -1363,6 +1582,7 @@ async function renderQx() {
   qxCatView = null;
   qxView = { mode: 'home', id: null };
   if (qxSheet === 'venc') return qxRenderVenc();
+  if (qxSheet === 'adel') return qxRenderAdel();
   if (qxSheet === 'hoja1' || qxSheet === 'hoja3') return qxRenderSheet(qxSheet);
   return qxRenderMacro();
 }
@@ -1501,7 +1721,7 @@ async function renderQxList(cat) {
 
 /** Barra de pestañas con las 3 hojas del Excel. */
 function qxSheetTabs() {
-  const tabs = [['macro', 'MACRO'], ['venc', 'Panel RRHH'], ['hoja1', 'Hoja 1'], ['hoja3', 'Hoja 3']];
+  const tabs = [['macro', 'MACRO'], ['venc', 'Panel RRHH'], ['adel', 'Adelantos'], ['hoja1', 'Hoja 1'], ['hoja3', 'Hoja 3']];
   return '<div class="qxtabs">' + tabs.map(t =>
     '<button class="qxtab' + (qxSheet === t[0] ? ' on' : '') + '" data-a="qxsheet" data-s="' + t[0] + '">' + t[1] + '</button>'
   ).join('') + '</div>';
@@ -1736,7 +1956,7 @@ function qxBindGrid() {
 
 /** Cambia de hoja (pestañas MACRO · Hoja 1 · Hoja 3). */
 function qxSwitchSheet(s) {
-  if (['macro', 'venc', 'hoja1', 'hoja3'].indexOf(s) < 0) return;
+  if (['macro', 'venc', 'adel', 'hoja1', 'hoja3'].indexOf(s) < 0) return;
   qxSheet = s; qxPage = 0; qxFilter = '';
   qxFDepto = ''; qxFQuin = ''; qxFGest = '';
   qxSort = { col: -1, dir: 1 };      // cada hoja tiene sus propias columnas
@@ -2308,6 +2528,12 @@ const QX_ACTIONS = {
   qxcomp: el => qxComprobanteDialog(el.dataset.id, +el.dataset.i),
   qxcompadd: el => qxComprobanteAdd(el.dataset.id, +el.dataset.i),
   qxcompdel: el => qxComprobanteDel(el.dataset.id, +el.dataset.i, el.dataset.doc),
+  /* Adelantos */
+  qxadelnew: () => qxAdelDialog(null, 0, 0),
+  qxadeled: el => qxAdelDialog(el.dataset.id, +el.dataset.k, +el.dataset.j),
+  qxadelsave: el => qxAdelSave(el.dataset.id || '', +el.dataset.k, +el.dataset.j),
+  qxadeldel: el => qxAdelDel(el.dataset.id, +el.dataset.k, +el.dataset.j),
+  qxadelexport: () => qxAdelExportXlsx(),
   /* Avance, puesta al día y acciones en lote */
   qxpuestaaldia: () => qxPonerAlDia(),
   qxsel: el => qxSelToggle(el.dataset.k),

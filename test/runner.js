@@ -874,8 +874,8 @@
       qxPage = 0; qxFilter = ''; qxPageSize = 50;
 
       view = 'qx'; render();
-      step('la vista Quin/Adel muestra las 4 pestañas',
-        await until(() => $$('.qxtab').length === 4 && /MACRO/.test($('#view').innerHTML) &&
+      step('la vista Quin/Adel muestra las 5 pestañas',
+        await until(() => $$('.qxtab').length === 5 && /MACRO/.test($('#view').innerHTML) &&
           /Panel RRHH/.test($('#view').innerHTML) &&
           /Hoja 1/.test($('#view').innerHTML) && /Hoja 3/.test($('#view').innerHTML)));
       step('el aviso de pendientes se pinta en el menú',
@@ -1067,6 +1067,46 @@
       } else {
         step('exportar .xlsx (SheetJS no disponible sin red)', true);
       }
+
+      /* -------- 14e. Módulo de Adelantos ---------------------------------- */
+      $('[data-a="qxsheet"][data-s="adel"]').click();
+      step('la pestaña Adelantos se abre',
+        await until(() => /Adelantos/.test($('#view').innerHTML) && !!$('[data-a="qxadelnew"]')));
+      step('la pestaña muestra las tarjetas de totales', !!$('.qxcards'));
+      step('la pestaña explica qué son los adelantos',
+        /adelantos que pide el trabajador/.test($('#view').innerHTML));
+
+      $('[data-a="qxadelnew"]').click();
+      step('el diálogo de adelanto pide todos los datos',
+        await until(() => !!$('#qad-emp') && !!$('#qad-k') && !!$('#qad-j') &&
+          !!$('#qad-det') && !!$('#qad-per') && !!$('#qad-an') && !!$('#qad-vis')));
+      $('#qad-emp').value = 'ANA PRUEBA UNO';
+      $('#qad-det').value = 'ADELANTO DE PRUEBA';
+      $('#qad-an').value = '2';
+      $('#qad-vis').value = 'Sí';
+      $('[data-a="qxadelsave"]').click();
+      step('el adelanto se guarda en la base', await until(() => {
+        const e = qxData.empleados.find(x => x.nombre === 'ANA PRUEBA UNO');
+        return !!e && e.adelantos[0][0].detalle === 'ADELANTO DE PRUEBA' && e.adelantos[0][0].anios === '2';
+      }));
+      step('y aparece en el listado', await until(() => /ADELANTO DE PRUEBA/.test($('#view').innerHTML)));
+      step('el ranking de adelantos aparece', /Quiénes más han adelantado/.test($('#view').innerHTML));
+
+      $('[data-a="qxadeled"]').click();
+      step('se puede editar un adelanto desde la lista',
+        await until(() => !!$('#qad-det') && $('#qad-det').value === 'ADELANTO DE PRUEBA'));
+      closeModal();
+
+      const adelFiltro = $('#qxadelfilter');
+      adelFiltro.value = 'zzzz';
+      adelFiltro.dispatchEvent(new Event('input', { bubbles: true }));
+      step('el buscador de adelantos filtra',
+        await until(() => /Ningún adelanto coincide/.test($('#view').innerHTML)));
+      const adelFiltro2 = $('#qxadelfilter');
+      adelFiltro2.value = '';
+      adelFiltro2.dispatchEvent(new Event('input', { bubbles: true }));
+      step('y al limpiarlo vuelven a salir',
+        await until(() => /ADELANTO DE PRUEBA/.test($('#view').innerHTML)));
 
       view = 'docs'; render();
 

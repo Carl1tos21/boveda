@@ -62,6 +62,7 @@ const ACTIONS = {
 
   /* Ayuda y cuenta */
   help: () => helpDialog(),
+  helps: el => helpDialog(el.dataset.s),
   privacy: () => privacyDialog(),
   whomenu: () => accountMenu(),
 

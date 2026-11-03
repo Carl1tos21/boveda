@@ -434,3 +434,12 @@ img.pvsp{object-fit:contain}
 .row:hover{border-color:var(--ac)}
 .status .ok{color:var(--ok)}
 @media(max-width:860px){.qxcards{grid-template-columns:1fr}.qxtools{padding:8px}.qxc{padding:14px}.qxc .num{font-size:20px}}
+
+/* --- Guía de uso (Ayuda) --- */
+.helptabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--bd);margin-bottom:12px;overflow-x:auto}
+.helptab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;font-size:13px;font-weight:600;color:var(--mu);cursor:pointer;white-space:nowrap;margin-bottom:-2px}
+.helptab:hover{color:var(--ac)}
+.helptab.on{color:var(--ac);border-bottom-color:var(--ac)}
+.helpbody{max-height:58vh;overflow:auto;padding-right:4px}
+.helpbody .pn{margin-bottom:10px}
+.helpbody code{background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:1px 5px;font-size:12.5px;word-break:break-all}

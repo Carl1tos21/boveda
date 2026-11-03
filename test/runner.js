@@ -788,6 +788,27 @@
         folders.filter(f => f === 'CARPETA ENTER').length);
       closeModal();
 
+      /* -------- 13b. Guía de ayuda con secciones --------------------------- */
+      step('la Ayuda abre con sus secciones', (function () {
+        helpDialog();
+        return !!$('.md') && $$('.helptab').length >= 8 && /Cómo funciona/.test($('.md').innerHTML);
+      })());
+      step('la primera sección viene activa',
+        !!$('.helptab.on') && /Mi bóveda/.test($('.helpbody').innerHTML));
+      step('la guía incluye la sección de Quin/Adel', /Quin\/Adel/.test($('.md').innerHTML));
+      $('[data-a="helps"][data-s="quin"]').click();
+      step('se puede cambiar de sección', await until(() =>
+        /Panel RRHH/.test(($('.helpbody') || {}).innerHTML || '') &&
+        /Quin\/Adel/.test(($('.helptab.on') || {}).textContent || '')));
+      $('[data-a="helps"][data-s="trucos"]').click();
+      step('la sección de trucos explica el Enter', await until(() =>
+        /Ctrl \+ Enter/.test(($('.helpbody') || {}).innerHTML || '')));
+      $('[data-a="helps"][data-s="boveda"]').click();
+      step('la sección de la bóveda habla de la papelera', await until(() =>
+        /papelera/i.test(($('.helpbody') || {}).innerHTML || '')));
+      closeModal();
+      step('la guía se cierra', !$('.md'));
+
       /* -------- 14a-quater. Papelera de reciclaje y Deshacer -------------- */
       const nDocsAntes = docs.length;
       const docPap = docs[0];

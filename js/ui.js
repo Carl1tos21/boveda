@@ -183,27 +183,203 @@ function confirmDialog(title, msg, okLabel = 'Eliminar') {
 /* ===================== Ayuda y privacidad ===================== */
 
 /** Ventana de ayuda rápida (barra de estado). */
-function helpDialog() {
+/* ===================== Guía de uso (Ayuda) ============================= */
+
+/** Secciones de la guía. Se muestran como pestañas dentro de la Ayuda. */
+const HELP_SECTIONS = [
+  {
+    id: 'boveda', t: 'Mi bóveda', html: `
+    <div class="pn"><h2 style="font-size:15px">Guardar documentos</h2>
+      <div class="mu">Con el botón <b>+</b> del riel: <b>Nota o enlace</b> (texto y links),
+      <b>subir archivos</b> (varios a la vez), <b>foto</b> con la cámara, <b>galería</b>,
+      <b>escanear</b> varias páginas o <b>crear una carpeta</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Carpetas y favoritos</h2>
+      <div class="mu">Los documentos se agrupan por <b>carpeta</b>. Puedes <b>arrastrar archivos</b>
+      del ordenador encima de una carpeta, y <b>arrastrar un documento</b> a otra carpeta para
+      moverlo (en el móvil, <b>Mover</b> en el panel del documento). La ★ marca un favorito.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Buscar y ordenar</h2>
+      <div class="mu">Arriba está el buscador (por nombre, carpeta o archivo) y el botón de
+      <b>ordenar y filtrar</b>. Puedes ver la bóveda en <b>lista</b>, <b>tarjetas</b> o
+      <b>filas</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Papelera y Deshacer</h2>
+      <div class="mu">Lo que borras va a la <b>papelera</b> (<i>Ajustes → Ver papelera</i>) y se
+      guarda <b>30 días</b>: puedes <b>Restaurar</b>, borrar para siempre o vaciarla. Además,
+      justo después de borrar aparece <b>«Deshacer»</b> en el aviso.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Compartir</h2>
+      <div class="mu">En el <b>celular</b>, «Compartir» abre el menú del sistema con el archivo
+      adjunto (WhatsApp, Gmail…). En la <b>computadora</b> los navegadores no dejan adjuntar
+      desde una web: se abre la conversación con el mensaje escrito y descargas el archivo para
+      adjuntarlo con el clip 📎.</div></div>`
+  },
+  {
+    id: 'notas', t: 'Notas y enlaces', html: `
+    <div class="pn"><h2 style="font-size:15px">Qué son</h2>
+      <div class="mu">Desde <b>+ → Nota o enlace</b> guardas <b>texto</b> y/o un <b>link</b>
+      cifrado, sin necesidad de tener un archivo. Sirve para apuntes, claves de trámites,
+      direcciones web, teléfonos…</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Cómo se guardan</h2>
+      <div class="mu">Se guardan como un <code>.txt</code> normal (el enlace en la primera línea),
+      así que siguen siendo legibles si los <b>descargas</b> o los <b>compartes</b>. En la lista
+      llevan la etiqueta <b>LINK</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Enlaces pulsables</h2>
+      <div class="mu">Cualquier <code>https://…</code> que escribas <b>dentro del texto</b> se
+      vuelve un enlace azul que puedes pulsar. También hay un botón
+      <b>«Abrir enlace»</b> en el visor y en el panel lateral.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Editar</h2>
+      <div class="mu">El botón <b>Editar</b> reabre el formulario con el título, el enlace y el
+      texto tal como los dejaste. También funciona con cualquier archivo <code>.txt</code> que
+      subas.</div></div>`
+  },
+  {
+    id: 'escaner', t: 'Escáner', html: `
+    <div class="pn"><h2 style="font-size:15px">Escanear documentos</h2>
+      <div class="mu">Con <b>+ → Escanear</b> haces varias fotos y la app las junta en
+      <b>un solo PDF</b>. Cada página se puede <b>recortar</b> arrastrando las 4 esquinas
+      (corrige la perspectiva como si fuera un escáner de verdad), <b>girar</b> y
+      <b>repetir</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Consejos</h2>
+      <div class="mu">Busca buena luz, pon el papel sobre una superficie oscura y encuadra los
+      bordes. El PDF se guarda cifrado como cualquier otro documento.</div></div>`
+  },
+  {
+    id: 'quin', t: 'Quin/Adel', html: `
+    <div class="pn"><h2 style="font-size:15px">Para qué sirve</h2>
+      <div class="mu">Es el módulo de <b>Recursos Humanos</b> que reemplaza tu Excel
+      <code>MACRO_QUINQUENIOS.xlsx</code>. Controla el <b>quinquenio</b> (el bono por antigüedad
+      cada 5 años: 1.º a los 5, 2.º a los 10, 3.º a los 15) y los <b>adelantos</b> que pide el
+      trabajador. Trae precargada la base de <b>338 trabajadores</b>, todo cifrado.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Las 4 pestañas</h2>
+      <div class="mu"><b>MACRO</b> · buscador: escribes un nombre, cédula, cargo o departamento y
+      abres su ficha.<br>
+      <b>Panel RRHH</b> · tu tablero diario (ver abajo).<br>
+      <b>Hoja 1</b> · las 25 columnas del Excel, editables: quinquenios, periodos, visados y
+      adelantos. Se puede buscar, filtrar, ordenar y editar.<br>
+      <b>Hoja 3</b> · los 18 datos de RRHH (dirección, puesto, categoría, departamento,
+      sindicato, jefe, N.º de personal, sueldo…).</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Panel RRHH</h2>
+      <div class="mu">📈 <b>Avance de la gestión</b>: cuántos quinquenios vencidos ya están
+      marcados y cuántos quedan.<br>
+      ⏰ <b>Próximos vencimientos</b>: quién cumple en los próximos 3, 6 o 12 meses.<br>
+      ⚠️ <b>Pendientes de gestionar</b>: los que ya vencieron y siguen sin cerrar, con
+      <b>casillas</b> para marcarlos <b>en lote</b>.<br>
+      🔎 <b>Datos a revisar</b>: sin fecha de ingreso, CUMPLE antes de tiempo, adelantos sin
+      detalle, N.º de personal repetido o vacío, sin departamento, sin datos de RRHH y periodos
+      que no cuadran.<br>
+      📅 <b>Calendario</b> de 12 meses y 🏢 <b>resumen por departamento</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">El flujo de trabajo</h2>
+      <div class="mu">Cada quinquenio lleva un <b>trámite</b>:
+      <b>Pendiente → En proceso → Aprobado → Pagado</b> (o Rechazado), con <b>fecha</b>,
+      <b>responsable</b> y <b>nota</b>. Se edita desde la ficha o con el botón <b>«Gestionar»</b>
+      del Panel.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Botones útiles</h2>
+      <div class="mu"><b>Calcular periodos</b>: rellena los periodos desde la fecha de ingreso
+      (como el <code>DATEDIF</code> del Excel).<br>
+      <b>Poner la base al día</b>: de golpe rellena los periodos vacíos, copia el <b>cargo</b>
+      desde la Hoja 3 (el <code>BUSCARV</code> del Excel) y limpia valores inválidos. Nunca pisa
+      lo escrito a mano.<br>
+      <b>Constancia</b>: el PDF formal que se entrega al trabajador, con datos de la empresa y
+      firmas.<br>
+      <b>Comprobantes</b>: adjunta el comprobante del pago (se guarda cifrado en la bóveda).<br>
+      <b>Historial</b>: auditoría de todo lo que se editó.<br>
+      <b>Importar / Exportar</b>: lee tu <code>.xlsx</code> y devuelve un Excel real con las 3
+      hojas.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">El aviso del menú</h2>
+      <div class="mu">Sobre el icono del reloj aparece un <b>número rojo</b> con los quinquenios
+      vencidos sin gestionar: así sabes que hay trabajo pendiente <b>sin entrar</b>.</div></div>`
+  },
+  {
+    id: 'excel', t: 'Excel y Drive', html: `
+    <div class="pn"><h2 style="font-size:15px">Excel Online (Microsoft)</h2>
+      <div class="mu">Para abrir tus hojas con el <b>Excel de Microsoft</b>, la app sube una copia
+      a tu <b>OneDrive</b> y abre el enlace de Office. Necesita un <b>ID de cliente de Azure</b>
+      (gratis, una sola vez): en <b>portal.azure.com</b> → <i>Microsoft Entra ID → Registros de
+      aplicaciones → Nuevo registro</i>, tipo <b>Aplicación de página única (SPA)</b>, y en
+      <i>URI de redirección</i> pon <code>TU-SITIO/ms-auth.html</code>. Pega el ID cuando la app
+      te lo pida.</div>
+      <div class="mu" style="margin-top:8px"><b>Sincronización automática:</b> lo que edites en
+      Excel Online se trae solo a la bóveda <b>al volver a la app</b> (o con
+      <b>«Traer de OneDrive»</b>).</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Ver con Drive (Google)</h2>
+      <div class="mu">Sube una copia <b>SIN CIFRAR</b> de ese documento a tu Drive para que el
+      visor de Google lo muestre. Es opcional, documento por documento, y se puede borrar con
+      <b>«Quitar de Drive»</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Respaldos y sincronización</h2>
+      <div class="mu">En <b>Ajustes</b> exportas un respaldo <b>cifrado</b> y puedes conectar tu
+      <b>Google Drive</b> para ver lo mismo en el celular y la computadora. A Drive solo sube el
+      archivo cifrado: Google no puede leerlo.</div></div>`
+  },
+  {
+    id: 'ajustes', t: 'Ajustes', html: `
+    <div class="pn"><h2 style="font-size:15px">Seguridad</h2>
+      <div class="mu">Aquí cambias el <b>bloqueo automático</b> por inactividad y decides si este
+      dispositivo <b>recuerda la llave</b> (para entrar con Google sin escribir la contraseña).
+      Esa llave se guarda <b>no extraíble</b> y nunca se sube a Drive.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Respaldo</h2>
+      <div class="mu"><b>Exportar respaldo</b> guarda un archivo cifrado con todo (documentos,
+      datos, carpetas y papelera). <b>Importar respaldo</b> lo restaura o lo fusiona. Necesitarás
+      la contraseña maestra.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Protección de datos</h2>
+      <div class="mu">Pulsa <b>«Proteger almacenamiento»</b>: si el navegador está corto de
+      espacio podría borrar la bóveda, y así se lo impides. Aun así, <b>exporta respaldos con
+      frecuencia</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Papelera</h2>
+      <div class="mu"><b>Ver papelera</b> muestra lo que has borrado (30 días) para restaurarlo.
+      <b>Borrar toda la bóveda</b> elimina todo sin vuelta atrás.</div></div>`
+  },
+  {
+    id: 'trucos', t: 'Trucos', html: `
+    <div class="pn"><h2 style="font-size:15px">Teclado</h2>
+      <div class="mu"><b>Enter</b> guarda en cualquier formulario (en las áreas de texto,
+      <b>Ctrl + Enter</b>).<br>
+      <b>Ctrl + K</b> (o ⌘ + K) enfoca el buscador.<br>
+      <b>/</b> también abre el buscador.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Deshacer</h2>
+      <div class="mu">Al borrar un documento o dar de baja a un trabajador sale un aviso con
+      <b>«Deshacer»</b>. Y todo lo borrado espera 30 días en la <b>papelera</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Instálala como app</h2>
+      <div class="mu">Desde el navegador puedes <b>añadirla a la pantalla de inicio</b> y usarla
+      como una app normal, incluso <b>sin conexión</b>.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Sin conexión</h2>
+      <div class="mu">La app funciona entera <b>offline</b>: el cascarón se guarda en caché y tus
+      datos viven cifrados en el dispositivo. Solo necesitas internet para Drive y Excel
+      Online.</div></div>`
+  }
+];
+
+/**
+ * Guía de uso (Ayuda). Se abre en la sección indicada; por defecto, la primera.
+ * @param {string} [seccion] id de HELP_SECTIONS
+ */
+function helpDialog(seccion) {
+  const sec = HELP_SECTIONS.find(s => s.id === seccion) || HELP_SECTIONS[0];
   openModal(`<h2>Cómo funciona ${APP_NAME}</h2>
-  <div class="mu" style="margin-bottom:12px">Todo se guarda <b>cifrado</b> en este dispositivo. No hay servidores ni cuentas.</div>
-
-  <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Guardar documentos</h2>
-    <div class="mu">Con el botón <b>+</b> del riel: sube un archivo, toma una foto o escanea varias páginas (se juntan en un PDF).</div></div>
-
-  <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Carpetas y favoritos</h2>
-    <div class="mu">Los documentos se agrupan por <b>carpeta</b>. Con <b>«Nueva carpeta»</b> creas una y con <b>⬆</b> subes archivos dentro. Puedes <b>arrastrar archivos</b> del ordenador <b>encima de una carpeta</b> para guardarlos ahí, y <b>arrastrar un documento</b> a otra carpeta para moverlo (en el móvil, usa <b>Mover</b> en el panel del documento). Pulsa una carpeta para abrirla o cerrarla. La ★ marca un documento como favorito.</div></div>
-
-  <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Compartir</h2>
-    <div class="mu">En el <b>celular</b>, «Compartir» abre el menú del sistema con el archivo adjunto (WhatsApp, Gmail…). En la <b>computadora</b>, los navegadores no permiten adjuntar desde una web: se abre la conversación con el mensaje escrito y descargas el archivo para adjuntarlo con el clip 📎.</div></div>
-
-  <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Respaldos y sincronización</h2>
-    <div class="mu">En <b>Ajustes</b> puedes exportar un respaldo cifrado y conectar tu Google Drive para ver lo mismo en el celular y la computadora.</div></div>
-
-  <div class="pn" style="margin-bottom:10px"><h2 style="font-size:15px">Excel Online (Microsoft)</h2>
-    <div class="mu">Para abrir tus hojas de cálculo con el <b>Excel de Microsoft</b>, la app sube una copia a tu <b>OneDrive</b> y abre el enlace de Office. Necesita un <b>ID de cliente de Azure</b> (gratis, una sola vez): en <b>portal.azure.com</b> → <i>Microsoft Entra ID → Registros de aplicaciones → Nuevo registro</i>, tipo <b>Aplicación de página única (SPA)</b>, y en <i>URI de redirección</i> pon <code>TU-SITIO/ms-auth.html</code>. Pega el ID cuando la app te lo pida.</div>
-    <div class="mu" style="margin-top:8px"><b>Sincronización automática:</b> lo que edites y guardes en Excel Online se trae solo a la bóveda <b>al volver a la app</b> (también puedes forzarlo con el botón <b>«Traer de OneDrive»</b>). Los archivos vinculados llevan la marca <b>Excel Online</b> en la lista.</div></div>
-
-  <div class="fx"><button class="btn p" data-a="close">Entendido</button></div>`);
+  <div class="mu" style="margin-bottom:10px">Todo se guarda <b>cifrado</b> en este dispositivo. No hay servidores ni cuentas.</div>
+  <div class="helptabs">
+    ${HELP_SECTIONS.map(s => `<button class="helptab${s.id === sec.id ? ' on' : ''}" data-a="helps" data-s="${s.id}">${esc(s.t)}</button>`).join('')}
+  </div>
+  <div class="helpbody">${sec.html}</div>
+  <div class="fx"><button class="btn p" data-a="close">Entendido</button></div>`, true);
 }
 
 /** Ventana de privacidad. */

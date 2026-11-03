@@ -250,6 +250,18 @@ const HELP_SECTIONS = [
       bordes. El PDF se guarda cifrado como cualquier otro documento.</div></div>`
   },
   {
+    id: 'datos', t: 'Mis datos', html: `
+    <div class="pn"><h2 style="font-size:15px">Pares etiqueta / valor</h2>
+      <div class="mu">En <b>Mis datos</b> guardas información corta: números de documento,
+      cuentas, contactos, direcciones… Cada dato se cifra por separado y se puede
+      <b>copiar</b> al portapapeles con un toque.</div></div>
+
+    <div class="pn"><h2 style="font-size:15px">Diferencia con las notas</h2>
+      <div class="mu">Aquí cada dato es una <b>etiqueta</b> con su <b>valor</b> (ideal para
+      consultar y copiar). Si necesitas texto largo o un enlace, usa
+      <b>+ → Nota o enlace</b>.</div></div>`
+  },
+  {
     id: 'quin', t: 'Quin/Adel', html: `
     <div class="pn"><h2 style="font-size:15px">Para qué sirve</h2>
       <div class="mu">Es el módulo de <b>Recursos Humanos</b> que reemplaza tu Excel

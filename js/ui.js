@@ -67,6 +67,7 @@ function chrome() {
      <button data-a="privacy">${ic('sh')}Política de privacidad</button>`;
 
   updateWho();
+  initEnterToSave();
 }
 
 /** Avatar + correo de la cuenta conectada (o «Sin cuenta»). */
@@ -94,6 +95,59 @@ function render() {
 
   /* Aviso rojo en el menú con los quinquenios vencidos sin gestionar. */
   if (typeof qxUpdateBadge === 'function') qxUpdateBadge();
+}
+
+/* ===================== Guardar con Enter ===================== */
+
+/**
+ * Pulsar Enter para guardar.
+ *
+ * Dentro de un diálogo (o del panel lateral), si el foco está en un campo o en
+ * un desplegable, Enter pulsa el botón principal — exactamente igual que si se
+ * hiciera clic. En las áreas de texto Enter escribe un salto de línea, así que
+ * ahí se guarda con Ctrl + Enter (o ⌘ + Enter en Mac).
+ */
+function initEnterToSave() {
+  if (initEnterToSave._done) return;
+  initEnterToSave._done = true;
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.defaultPrevented) return;
+    const el = e.target;
+    if (!el || !el.tagName) return;
+
+    const tag = el.tagName.toLowerCase();
+    if (tag !== 'input' && tag !== 'select' && tag !== 'textarea') return;
+    if (tag === 'input' && el.type === 'file') return;                 // Enter abre el selector
+    if (tag === 'textarea' && !(e.ctrlKey || e.metaKey)) return;       // en el texto, Enter escribe
+
+    const cont = el.closest ? (el.closest('.ov') || el.closest('#drawer')) : null;
+    if (!cont) return;                                                 // solo en diálogos y en el panel
+
+    const btn = saveButtonOf(cont);
+    if (!btn) return;
+    e.preventDefault();
+    btn.click();
+  });
+}
+
+/**
+ * Botón de guardado de un diálogo: primero los botones conocidos de guardar y,
+ * si no hay ninguno, el último botón «principal» del pie.
+ * Los diálogos de confirmación (Eliminar) no tienen botón principal: Enter no
+ * los acepta, así no se borra nada sin querer.
+ */
+function saveButtonOf(cont) {
+  const btns = Array.from(cont.querySelectorAll('.btn')).filter(b =>
+    !b.disabled && b.dataset.a !== 'close' && b.dataset.a !== 'drawerclose');
+
+  const conocidos = btns.filter(b =>
+    /^(fok|nok|iok|mfok|nfok|rfok|msok)$/.test(b.id || '') ||
+    /^(qxaddconfirm|qxgsave|qxconstgen|qxcompadd|qxmapconfirm|dsave)$/.test(b.dataset.a || ''));
+  if (conocidos.length) return conocidos[0];
+
+  const prim = btns.filter(b => b.classList.contains('p'));
+  return prim.length ? prim[prim.length - 1] : null;
 }
 
 /* ===================== Modales ===================== */

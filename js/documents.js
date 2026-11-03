@@ -54,6 +54,7 @@ function multiDocForm(files, cat) {
     <input id="mfcat" list="mfcatlist" value="${esc(cat)}">
     <datalist id="mfcatlist">${cats.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist></div>
   <div class="f"><label>Notas (opcional, para todos)</label><textarea id="mfno" rows="2"></textarea></div>
+  <div class="mu" style="margin-bottom:10px">Pulsa <b>Enter</b> para subir todos (en las notas, <b>Ctrl + Enter</b>).</div>
   <div class="pn" style="max-height:32vh;overflow:auto;margin-bottom:12px;padding:10px 12px">
     ${files.map(f => `<div class="row" style="margin:0 0 6px;box-shadow:none">
       <div class="v" style="font-weight:500;word-break:break-all">${esc(f.name)}</div>
@@ -94,7 +95,7 @@ function docForm(d, isNew) {
   <div class="f"><label>Categoría</label><input id="fc" list="catlist" value="${esc(d.cat || 'General')}">
     <datalist id="catlist">${cats.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist></div>
   <div class="f"><label>Notas</label><textarea id="fno" rows="3">${esc(d.notes || '')}</textarea></div>
-  <div class="mu">${esc(d.file || '')}${sizeTxt ? ' · ' + sizeTxt : ''}</div>
+  <div class="mu">${esc(d.file || '')}${sizeTxt ? ' · ' + sizeTxt : ''} · Pulsa <b>Enter</b> para guardar</div>
   <div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" id="fok">${ic('ok')}Guardar</button></div>`);
 
   $('#fok').onclick = async () => {
@@ -154,7 +155,7 @@ async function notaForm(d, isNew) {
   <div class="f"><label>Texto (opcional)</label><textarea id="nx" rows="8" placeholder="Escribe o pega aquí lo que quieras guardar…">${esc(texto)}</textarea></div>
   <div class="f"><label>Carpeta</label><input id="nc" list="nclist" value="${esc(d ? (d.cat || 'Notas') : 'Notas')}">
     <datalist id="nclist">${cats.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist></div>
-  <div class="mu">Se guarda cifrado con tu contraseña. Los enlaces que queden en el texto se podrán pulsar.</div>
+  <div class="mu">Se guarda cifrado con tu contraseña. Los enlaces que queden en el texto se podrán pulsar. Pulsa <b>Enter</b> para guardar (en el texto, <b>Ctrl + Enter</b>).</div>
   <div class="fx"><button class="btn" data-a="close">Cancelar</button>
     <button class="btn p" id="nok">${ic('ok')}Guardar</button></div>`);
 

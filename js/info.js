@@ -28,6 +28,7 @@ function infoForm(item) {
   openModal(`<h2>${isNew ? 'Nuevo dato' : 'Editar dato'}</h2>
   <div class="f"><label>Etiqueta</label><input id="il" value="${esc(item ? item.label : '')}" placeholder="Ej: Nº de pasaporte"></div>
   <div class="f"><label>Valor</label><textarea id="iv" rows="4" placeholder="Contenido...">${esc(item ? item.value : '')}</textarea></div>
+  <div class="mu">Pulsa <b>Enter</b> para guardar (en el valor, <b>Ctrl + Enter</b>).</div>
   <div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" id="iok">${ic('ok')}Guardar</button></div>`);
 
   $('#iok').onclick = async () => {

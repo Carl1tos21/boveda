@@ -344,10 +344,7 @@ function newFolderDialog() {
   <div class="f"><label>Nombre de la carpeta</label><input id="nfname" placeholder="Ej: Contratos"></div>
   <div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" id="nfok">${ic('ok')}Crear carpeta</button></div>`);
   const inp = $('#nfname');
-  if (inp) {
-    inp.focus();
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter') createFolder(); });
-  }
+  if (inp) inp.focus();      /* Enter guarda solo (ver initEnterToSave en ui.js) */
   $('#nfok').onclick = () => createFolder();
 }
 

@@ -734,6 +734,60 @@
       step('un enlace sin http:// se rechaza', !docs.some(d => d.name === 'ENLACE MAL ESCRITO'));
       closeModal();
 
+      /* -------- 14a-ter. Guardar con la tecla Enter ------------------------ */
+      step('saveButtonOf elige el botón de guardar del diálogo', (function () {
+        openModal('<div class="fx"><button class="btn" data-a="close">Cancelar</button><button class="btn p" id="fok">Guardar</button></div>');
+        const b = saveButtonOf($('.ov'));
+        const ok = !!b && b.id === 'fok';
+        closeModal();
+        return ok;
+      })());
+      step('los diálogos de confirmación NO se aceptan con Enter', (function () {
+        openModal('<div class="fx"><button class="btn" id="cfno">Cancelar</button><button class="btn dg" id="cfok">Eliminar</button></div>');
+        const r = saveButtonOf($('.ov')) === null;
+        closeModal();
+        return r;
+      })());
+      step('initEnterToSave solo se engancha una vez', (function () {
+        initEnterToSave();
+        initEnterToSave();
+        return initEnterToSave._done === true;
+      })());
+
+      step('Enter guarda la nota sin tocar el botón', await until(() => {
+        notaForm(null, true);
+        return !!$('#nt');
+      }));
+      $('#nt').value = 'NOTA CON ENTER';
+      $('#nl').value = 'https://example.net/enter';
+      $('#nt').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      step('la nota se guarda al pulsar Enter',
+        await until(() => docs.some(d => d.name === 'NOTA CON ENTER' && d.link === 'https://example.net/enter')));
+
+      step('Enter en el área de texto NO guarda (escribe un salto)', await until(() => {
+        notaForm(null, true);
+        return !!$('#nt') && !!$('#nx');
+      }));
+      $('#nt').value = 'NOTA CON CTRL ENTER';
+      $('#nx').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      step('el área de texto no dispara el guardado', !docs.some(d => d.name === 'NOTA CON CTRL ENTER'));
+      $('#nx').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }));
+      step('Ctrl + Enter sí guarda desde el área de texto',
+        await until(() => docs.some(d => d.name === 'NOTA CON CTRL ENTER')));
+
+      step('Enter crea la carpeta una sola vez', await until(() => {
+        newFolderDialog();
+        return !!$('#nfname');
+      }));
+      $('#nfname').value = 'CARPETA ENTER';
+      $('#nfname').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      step('la carpeta se crea con Enter',
+        await until(() => folders.indexOf('CARPETA ENTER') >= 0));
+      step('y no se crea duplicada',
+        folders.filter(f => f === 'CARPETA ENTER').length === 1,
+        folders.filter(f => f === 'CARPETA ENTER').length);
+      closeModal();
+
       /* -------- 14b. Quinquenios y Adelantos · hojas del Excel (MACRO/H1/H3) --- */
       // Base de prueba en memoria (no depende de la red ni de la base incluida).
       qxData = {

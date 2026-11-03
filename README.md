@@ -488,6 +488,12 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   visor y en el panel lateral. En la lista aparecen con la etiqueta **LINK** y se
   pueden editar, mover de carpeta, marcar como favoritos o compartir como
   cualquier otro documento.
+- **Guardar con Enter**: en cualquier formulario (subir archivos, notas, datos,
+  carpetas, quinquenios, constancias…) basta pulsar **Enter** en un campo para
+  guardar, igual que si pulsaras el botón. En las **áreas de texto** Enter escribe
+  un salto de línea y se guarda con **Ctrl + Enter** (⌘ + Enter en Mac). Los
+  diálogos de confirmación (Eliminar) siguen necesitando un clic, para no borrar
+  nada sin querer.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
 - **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
   **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3), pensado para **Recursos

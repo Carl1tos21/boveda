@@ -85,8 +85,9 @@ python3 tools/build.py
 ```
 
 Esto genera `dist/` con **solo lo necesario** (`test/` y `tools/` quedan fuera),
-escribe `dist/_headers` con las cabeceras de seguridad y sella el service worker
-con un hash del contenido.
+escribe `dist/_headers` con las cabeceras de seguridad, **mete el CSP dentro del
+HTML** (para los hostings que no permiten cabeceras propias, como GitHub Pages)
+y sella el service worker con un hash del contenido.
 
 ### 2. Subirlo
 
@@ -141,7 +142,10 @@ Debe responder `[PASS] 6 cabeceras de seguridad presentes y correctas`.
 
 - **HTTPS es obligatorio**: sin él `crypto.subtle` no existe y la app avisa.
   Netlify, Vercel, Cloudflare Pages y GitHub Pages lo dan gratis.
-- **GitHub Pages no soporta `_headers`**: la app funciona igual, pero sin CSP.
+- **GitHub Pages no soporta `_headers`**: la app funciona igual porque el CSP
+  viaja **dentro del HTML** como `<meta http-equiv>`. Lo que sí se pierde en ese
+  hosting son las demás cabeceras (`nosniff`, `Referrer-Policy`, `X-Frame-Options`,
+  `Permissions-Policy`), que solo se pueden enviar por cabecera.
 - **No subas la carpeta del proyecto entera**: sube `dist/`, o `test/` y `tools/`
   quedarán publicados (no son peligrosos, pero no pintan nada ahí).
 - **Cada usuario tiene su bóveda**. La app no tiene cuentas: la "cuenta" es la

@@ -81,6 +81,39 @@ def stamp_sw(build):
     sw.write_text(text.replace('__BUILD__', build), encoding='utf-8')
 
 
+def stamp_csp():
+    """
+    Mete el CSP dentro de los HTML como <meta http-equiv>.
+
+    GitHub Pages no permite enviar cabeceras propias, así que sin esto la app
+    publicada se quedaría sin la política de seguridad. Va justo después de
+    <meta charset> para que valga desde el primer recurso que se carga.
+    """
+    meta = ('<meta http-equiv="Content-Security-Policy" content="%s">'
+            % security_headers.META_CSP)
+    for name in ('index.html', 'ms-auth.html'):
+        f = DIST / name
+        if not f.exists():
+            continue
+        text = f.read_text(encoding='utf-8')
+        if 'Content-Security-Policy' in text:
+            continue
+        marca = '<meta charset="utf-8">'
+        if marca not in text:
+            raise SystemExit('ERROR: %s no tiene %s' % (name, marca))
+        f.write_text(text.replace(marca, marca + '\n' + meta, 1), encoding='utf-8')
+
+
+def check_csp():
+    """Comprueba que el CSP quedó dentro de los HTML publicados."""
+    faltan = []
+    for name in ('index.html', 'ms-auth.html'):
+        f = DIST / name
+        if f.exists() and 'Content-Security-Policy' not in f.read_text(encoding='utf-8'):
+            faltan.append(name)
+    return faltan
+
+
 def check_references():
     """Comprueba que exista todo lo que index.html, sw.js y el manifest referencian."""
     missing = []
@@ -114,6 +147,8 @@ def main():
 
     (DIST / '_headers').write_text(security_headers.as_netlify_file(), encoding='utf-8')
 
+    stamp_csp()          # el CSP viaja también dentro del HTML (GitHub Pages)
+
     build = build_hash()
     stamp_sw(build)
 
@@ -122,6 +157,11 @@ def main():
         print('Faltan archivos referenciados:')
         for m in missing:
             print('  -', m)
+        return 1
+
+    sin_csp = check_csp()
+    if sin_csp:
+        print('ERROR: falta el CSP dentro de: ' + ', '.join(sin_csp))
         return 1
 
     files = [f for f in sorted(DIST.rglob('*')) if f.is_file()]

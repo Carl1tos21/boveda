@@ -55,6 +55,12 @@ HEADERS = {
     'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
 }
 
+# En una etiqueta <meta> los navegadores ignoran `frame-ancestors` (solo funciona
+# como cabecera), así que se omite para no generar avisos en la consola.
+# Se usa para GitHub Pages, que no permite enviar cabeceras propias: el CSP
+# viaja dentro del HTML y la app mantiene la misma protección.
+META_CSP = '; '.join(p for p in CSP.split('; ') if not p.startswith('frame-ancestors'))
+
 
 def as_netlify_file():
     """Devuelve el contenido del archivo `_headers` de Netlify."""

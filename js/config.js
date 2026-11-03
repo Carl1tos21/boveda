@@ -6,8 +6,8 @@
 
 const APP_NAME = 'Bóveda';
 const DB_NAME = 'boveda2';          // base de datos IndexedDB
-const DB_VERSION = 1;
-const STORES = ['docs', 'info', 'meta'];
+const DB_VERSION = 2;
+const STORES = ['docs', 'info', 'meta', 'trash'];
 const OLD_DB_NAME = 'misdocs';      // base antigua (migración automática)
 const PREF_KEY = 'boveda-local-v1'; // preferencias locales (tema, autobloqueo)
 const PBKDF2_ITERATIONS = 250000;   // coste de derivación de la clave maestra

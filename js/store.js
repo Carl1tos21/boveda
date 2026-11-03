@@ -47,6 +47,9 @@ const clearStore = s => mem ? (memStore[s].clear(), Promise.resolve()) : tx(s, '
 const getRec = id => mem ? Promise.resolve(memStore.meta.get(id)) : tx('meta', 'readonly', o => o.get(id));
 const getMeta = () => getRec('v');
 
+/** Lee un registro de cualquier almacén (docs, info, meta, trash). */
+const getFrom = (s, id) => mem ? Promise.resolve(memStore[s].get(id)) : tx(s, 'readonly', o => o.get(id));
+
 /**
  * Serializa la bóveda completa (cifrada) al formato de respaldo.
  * Es el MISMO contenido que se exporta a archivo y el que se sube a Drive:
@@ -54,9 +57,10 @@ const getMeta = () => getRec('v');
  */
 async function buildBackup() {
   const m = await getMeta();
-  const out = { app: 'boveda', v: DB_VERSION, date: Date.now(), salt: m.salt, chk: m.chk, docs: [], info: [] };
+  const out = { app: 'boveda', v: DB_VERSION, date: Date.now(), salt: m.salt, chk: m.chk, docs: [], info: [], trash: [] };
   for (const r of await all('docs')) out.docs.push({ id: r.id, date: r.date, blob: b2s(r.blob), meta: b2s(r.meta) });
   for (const r of await all('info')) out.info.push({ id: r.id, ord: r.ord, c: b2s(r.c) });
+  for (const r of await all('trash')) out.trash.push({ id: r.id, del: r.del, blob: b2s(r.rec.blob), meta: b2s(r.rec.meta), date: r.rec.date });
   const fr = await getRec(FOLDERS_ID);
   if (fr && fr.c) out.folders = b2s(fr.c);   // carpetas (los respaldos antiguos no la traen)
   return JSON.stringify(out);
@@ -117,6 +121,67 @@ async function saveDoc(d, k = key, rb = false) {
   return d;
 }
 
+/* --- Papelera de reciclaje ---------------------------------------------- */
+
+/**
+ * Días que se conserva un documento borrado antes de eliminarse solo.
+ * Mientras esté en la papelera se puede restaurar con un toque.
+ */
+const TRASH_DAYS = 30;
+
+/** Mueve un documento a la papelera (su contenido sigue cifrado). */
+async function trashDoc(id) {
+  const rec = await getFrom('docs', id);
+  if (!rec) return false;
+  await put('trash', { id, del: Date.now(), rec });
+  await del('docs', id);
+  return true;
+}
+
+/** Devuelve un documento de la papelera a la bóveda. */
+async function restoreDoc(id) {
+  const t = await getFrom('trash', id);
+  if (!t || !t.rec) return false;
+  await put('docs', t.rec);
+  await del('trash', id);
+  return true;
+}
+
+/** Borra un documento de la papelera para siempre. */
+const purgeDoc = id => del('trash', id);
+
+/** Papelera completa: lo borrado más recientemente, primero. */
+async function trashList() {
+  const l = await all('trash');
+  return l.sort((a, b) => (b.del || 0) - (a.del || 0));
+}
+
+/** Cuántos documentos hay en la papelera. */
+async function trashCount() {
+  try { return (await all('trash')).length; } catch (e) { return 0; }
+}
+
+/** Vacía la papelera por completo. */
+async function emptyTrash() {
+  const l = await all('trash');
+  for (const t of l) await del('trash', t.id);
+  return l.length;
+}
+
+/**
+ * Borra de la papelera lo que ya lleva más de TRASH_DAYS días.
+ * Se ejecuta una vez por sesión para que no crezca sin control.
+ */
+async function purgeOldTrash() {
+  try {
+    const lim = Date.now() - TRASH_DAYS * 86400000;
+    const l = await all('trash');
+    let n = 0;
+    for (const t of l) if ((t.del || 0) < lim) { await del('trash', t.id); n++; }
+    return n;
+  } catch (e) { return 0; }
+}
+
 /* --- Datos personales --------------------------------------------------- */
 async function saveInfo(i, k = key) {
   await put('info', {
@@ -141,6 +206,9 @@ async function load() {
   info.sort((a, b) => a.ord - b.ord);
 
   folders = await loadFolders();
+
+  /* Limpieza de la papelera: una vez por sesión (borra lo de más de 30 días). */
+  if (!load.purged) { load.purged = true; purgeOldTrash(); }
 
   loadSeq++;        // aviso de que la recarga terminó (lo usan las pruebas)
   if (typeof qxLoaded === 'boolean') qxLoaded = false;   // la base Quin/Adel se recarga tras importar respaldos
@@ -204,7 +272,10 @@ async function migrate() {
 
 /** Borra la base de datos completa (usado por "Borrar toda la bóveda"). */
 async function destroyDB() {
-  if (mem) { memStore.docs.clear(); memStore.info.clear(); memStore.meta.clear(); return; }
+  if (mem) {
+    memStore.docs.clear(); memStore.info.clear(); memStore.meta.clear(); memStore.trash.clear();
+    return;
+  }
   try { db.close(); } catch (e) { }
   await new Promise(r => {
     const q = indexedDB.deleteDatabase(DB_NAME);

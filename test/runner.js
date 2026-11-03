@@ -788,6 +788,53 @@
         folders.filter(f => f === 'CARPETA ENTER').length);
       closeModal();
 
+      /* -------- 14a-quater. Papelera de reciclaje y Deshacer -------------- */
+      const nDocsAntes = docs.length;
+      const docPap = docs[0];
+      await trashDoc(docPap.id);
+      await load();
+      step('borrar manda el documento a la papelera', docs.length === nDocsAntes - 1, docs.length);
+      step('el documento queda en la papelera', (await trashCount()) === 1, await trashCount());
+      step('y ya no aparece en Mi bóveda', !docs.some(d => d.id === docPap.id));
+
+      await restoreDoc(docPap.id);
+      await load();
+      step('restaurar lo devuelve a la bóveda',
+        docs.length === nDocsAntes && docs.some(d => d.id === docPap.id), docs.length);
+      step('la papelera queda vacía', (await trashCount()) === 0);
+
+      await trashDoc(docs[0].id);
+      await load();
+      await trashDialog();
+      step('la papelera se abre y lista lo borrado',
+        !!$('.md') && /Papelera/.test($('.md').innerHTML) && !!$('[data-a="trrestore"]'));
+      step('la papelera ofrece vaciarla', !!$('[data-a="trempty"]'));
+      $('[data-a="trrestore"]').click();
+      step('el botón Restaurar devuelve el documento',
+        await until(() => docs.length === nDocsAntes && !$('.md')), docs.length);
+      step('y la papelera vuelve a estar vacía', (await trashCount()) === 0);
+
+      step('toastAction pinta el botón «Deshacer» y funciona', (function () {
+        window.__undo = false;
+        toastAction('Prueba', 'Deshacer', () => { window.__undo = true; });
+        const b = $('#toast .tbtn');
+        const ok = !!b && b.textContent === 'Deshacer';
+        if (b) b.click();
+        return ok && window.__undo === true;
+      })());
+
+      step('Ajustes tiene la papelera', (function () {
+        view = 'set'; render();
+        return !!$('[data-a="trash"]') && !!$('#sttrash');
+      })());
+      step('Ajustes muestra el estado de la papelera',
+        await until(() => /Vacía|documento/.test(($('#sttrash') || {}).innerHTML || '')));
+      $('[data-a="trash"]').click();
+      step('el botón de Ajustes abre la papelera',
+        await until(() => !!$('.md') && /Papelera/.test($('.md').innerHTML)));
+      closeModal();
+      view = 'docs'; render();
+
       /* -------- 14b. Quinquenios y Adelantos · hojas del Excel (MACRO/H1/H3) --- */
       // Base de prueba en memoria (no depende de la red ni de la base incluida).
       qxData = {
@@ -981,6 +1028,10 @@
       $('#cfok').click();
       step('el trabajador se elimina',
         await until(() => !qxData.empleados.some(e => e.nombre === 'CARLA NUEVA TRABAJADORA')));
+      step('la baja se puede deshacer', await until(() => !!$('#toast .tbtn')));
+      $('#toast .tbtn').click();
+      step('el trabajador vuelve a la base',
+        await until(() => qxData.empleados.some(e => e.nombre === 'CARLA NUEVA TRABAJADORA')));
 
       if (window.XLSX) {
         let xlsxSheets = null, xlsxName = '';

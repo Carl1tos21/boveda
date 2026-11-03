@@ -1784,17 +1784,26 @@ async function qxAddWorkerConfirm() {
   toast('Trabajador añadido ✅');
 }
 
-/** Elimina un trabajador de la base. */
+/** Elimina un trabajador de la base (se puede deshacer). */
 async function qxDeleteWorker(id) {
   const e = ((qxData && qxData.empleados) || []).find(x => x.id === id);
   if (!e) return;
   const ok = await confirmDialog('Eliminar trabajador', 'Se eliminará «' + e.nombre + '» de la base.', 'Eliminar');
   if (!ok) return;
+  const pos = qxData.empleados.indexOf(e);
   qxData.empleados = qxData.empleados.filter(x => x.id !== id);
   qxHist('Baja', e.nombre);
   await qxPersist();
+  qxBadgeN = -1;
   renderQx();
-  toast('Trabajador eliminado');
+  toastAction('Trabajador eliminado', 'Deshacer', async () => {
+    qxData.empleados.splice(pos < 0 ? 0 : pos, 0, e);
+    qxHist('Baja anulada', e.nombre);
+    await qxPersist();
+    qxBadgeN = -1;
+    renderQx();
+    toast('Trabajador restaurado ✅');
+  });
 }
 
 /**

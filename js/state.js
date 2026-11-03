@@ -24,7 +24,7 @@ let idleT = null;   // temporizador de autobloqueo
 let loadSeq = 0;    // se incrementa cada vez que load() termina de recargar
 
 /* Almacén en memoria usado como respaldo si IndexedDB falla. */
-const memStore = { docs: new Map(), info: new Map(), meta: new Map() };
+const memStore = { docs: new Map(), info: new Map(), meta: new Map(), trash: new Map() };
 
 /* Preferencias locales (se persisten en localStorage bajo PREF_KEY). */
 let prefs = {

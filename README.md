@@ -494,6 +494,11 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
   un salto de línea y se guarda con **Ctrl + Enter** (⌘ + Enter en Mac). Los
   diálogos de confirmación (Eliminar) siguen necesitando un clic, para no borrar
   nada sin querer.
+- **Papelera de reciclaje**: lo que borras **no se pierde**. Se guarda **30 días**
+  en la papelera (Ajustes → *Ver papelera*) con opción de **Restaurar**, borrar
+  definitivamente o **vaciar todo**. Además, al borrar un documento o dar de baja
+  a un trabajador aparece un **«Deshacer»** en el aviso para recuperarlo al
+  instante. La papelera va incluida en los respaldos y se limpia sola.
 - **Mis datos**: pares etiqueta/valor cifrados, con copiado al portapapeles.
 - **Quinquenios y Adelantos**: clon del Excel `MACRO_QUINQUENIOS.xlsx` con sus
   **4 pestañas** (MACRO · Panel RRHH · Hoja 1 · Hoja 3), pensado para **Recursos

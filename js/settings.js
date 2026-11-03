@@ -84,9 +84,14 @@ function renderSet() {
   <div class="pn"><h2>Almacenamiento</h2>
     <div class="row"><div class="l">Documentos</div><div class="v">${docs.length}</div></div>
     <div class="row"><div class="l">Datos guardados</div><div class="v">${info.length}</div></div>
+    <div class="row"><div class="l">En la papelera</div><div class="v" id="sttrash">—</div></div>
     <div class="row"><div class="l">Espacio usado</div><div class="v">${fmt(tot)}</div></div>
     <div class="row"><div class="l">Motor</div><div class="v">${mem ? 'Memoria volátil' : 'IndexedDB'}</div></div>
-    <div class="fx" style="justify-content:flex-start"><button class="btn dg" data-a="wipe">${ic('tr')}Borrar toda la bóveda</button></div>
+    <div class="fx" style="justify-content:flex-start">
+      <button class="btn" data-a="trash">${ic('tr')}Ver papelera</button>
+      <button class="btn dg" data-a="wipe">${ic('tr')}Borrar toda la bóveda</button>
+    </div>
+    <div class="mu" style="margin-top:10px">Lo que borras se guarda ${TRASH_DAYS} días en la papelera y luego se elimina solo. Mientras tanto puedes restaurarlo con un toque.</div>
   </div>`;
 
   $('#sttheme').onchange = e => { prefs.theme = e.target.value; savePrefs(); applyTheme(); };
@@ -149,6 +154,15 @@ async function fillStorage() {
   if (q) q.textContent = s.quota ? fmt(s.usage) + ' de ' + fmt(s.quota) : (s.usage ? fmt(s.usage) : '—');
   const b = $('#stask');
   if (b && s.persistent === true) b.hidden = true;
+
+  /* Cuántos documentos hay en la papelera. */
+  const t = $('#sttrash');
+  if (t) {
+    const n = await trashCount();
+    t.innerHTML = n
+      ? n + ' documento' + (n === 1 ? '' : 's') + ' · <span style="color:var(--ac)">restaurable' + (n === 1 ? '' : 's') + '</span>'
+      : 'Vacía';
+  }
 }
 
 /* ------------------- Cambio de contraseña maestra ---------------------- */
@@ -224,6 +238,9 @@ async function importBackup(file) {
 
   for (const d of data.docs || []) await put('docs', { id: d.id, date: d.date, blob: s2b(d.blob), meta: s2b(d.meta) });
   for (const i of data.info || []) await put('info', { id: i.id, ord: i.ord, c: s2b(i.c) });
+  for (const t of data.trash || []) {
+    await put('trash', { id: t.id, del: t.del, rec: { id: t.id, date: t.date, blob: s2b(t.blob), meta: s2b(t.meta) } });
+  }
   if (data.folders) await put('meta', { id: FOLDERS_ID, c: s2b(data.folders) });
 
   if (empty) {

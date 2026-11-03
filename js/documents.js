@@ -279,16 +279,81 @@ async function printDoc(id) {
   } catch (e) { toast('No se pudo imprimir'); }
 }
 
-/** Elimina un documento previa confirmación. */
+/** Mueve un documento a la papelera (se puede deshacer). */
 async function removeDoc(id) {
   const d = docs.find(x => x.id === id);
   if (!d) return;
-  if (!await confirmDialog('Eliminar documento', `¿Eliminar «${d.name}»? Esta acción no se puede deshacer.`)) return;
+  if (!await confirmDialog('Mover a la papelera',
+    `«${d.name}» se moverá a la papelera. Podrás restaurarlo durante ${TRASH_DAYS} días.`,
+    'Mover a la papelera')) return;
   if (d.driveId) driveDeleteOriginal(d);   // borra también la copia sin cifrar de Drive
-  await del('docs', id);
+  await trashDoc(id);
   closeDrawer();
   await load();
-  toast('Documento eliminado');
+  toastAction('Movido a la papelera', 'Deshacer', async () => {
+    await restoreDoc(id);
+    await load();
+    toast('Documento restaurado ✅');
+  });
+}
+
+/* ------------------------------ Papelera -------------------------------- */
+
+/** Restaura un documento de la papelera a la bóveda. */
+async function trRestore(id) {
+  await restoreDoc(id);
+  closeModal();
+  await load();
+  toast('Documento restaurado ✅');
+}
+
+/** Borra un documento de la papelera para siempre. */
+async function trPurge(id) {
+  if (!await confirmDialog('Borrar para siempre', 'Este documento no se podrá recuperar.', 'Borrar')) return;
+  await purgeDoc(id);
+  await load();
+  trashDialog();
+  toast('Documento borrado');
+}
+
+/** Vacía la papelera entera. */
+async function trEmpty() {
+  if (!await confirmDialog('Vaciar papelera',
+    'Se borrarán TODOS los documentos de la papelera. No se podrá recuperar.', 'Vaciar')) return;
+  const n = await emptyTrash();
+  await load();
+  trashDialog();
+  toast(n + ' documento' + (n === 1 ? '' : 's') + ' borrado' + (n === 1 ? '' : 's'));
+}
+
+/** Abre la papelera: restaurar, borrar para siempre o vaciarla. */
+async function trashDialog() {
+  const list = await trashList();
+  const items = [];
+  for (const t of list) {
+    let m = {};
+    try { m = JSON.parse(dec.decode(await D(key, t.rec.meta))); } catch (e) { /* registro dañado */ }
+    items.push({ t, m });
+  }
+
+  const filas = items.map(x => `<div class="row2" style="padding-left:12px">
+      <span class="tile" style="background:${tileColor(x.m.cat || 'General')}">${esc(extOf(x.m))}</span>
+      <span class="nm">
+        <span class="nm-top"><b>${esc(x.m.name || 'Sin nombre')}</b></span>
+        <span class="nm-sub">${esc(relTime(x.t.del))} · ${esc(x.m.cat || 'General')} · ${fmt(x.t.rec.blob ? x.t.rec.blob.byteLength : 0)}</span>
+      </span>
+      <button class="btn qxgbtn" data-a="trrestore" data-id="${esc(x.t.id)}">${ic('rot')}Restaurar</button>
+      <button class="btn qxgbtn dg" data-a="trpurge" data-id="${esc(x.t.id)}" title="Borrar para siempre">×</button>
+    </div>`).join('');
+
+  openModal(`<h2>Papelera</h2>
+    <div class="mu" style="margin-bottom:12px">${items.length} documento${items.length === 1 ? '' : 's'} · los que lleven más de ${TRASH_DAYS} días se borran solos.</div>
+    ${items.length
+      ? '<div style="max-height:48vh;overflow:auto;border:1px solid var(--bd);border-radius:12px">' + filas + '</div>'
+      : '<div class="empty">' + ic('tr') + '<br>La papelera está vacía.<br>Lo que borres aparecerá aquí ' + TRASH_DAYS + ' días.</div>'}
+    <div class="fx">
+      ${items.length ? '<button class="btn dg" data-a="trempty">Vaciar papelera</button>' : ''}
+      <button class="btn p" data-a="close">Cerrar</button></div>`);
 }
 
 /* ======================== Vista previa de archivos ====================== */

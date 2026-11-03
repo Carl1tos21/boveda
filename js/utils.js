@@ -48,6 +48,32 @@ function toast(m) {
   toast.t = setTimeout(() => t.style.display = 'none', 3200);
 }
 
+/**
+ * Aviso flotante con un botón de acción (por ejemplo «Deshacer»).
+ * Dura un poco más para que dé tiempo a pulsarlo.
+ */
+function toastAction(mensaje, etiqueta, fn) {
+  const t = $('#toast');
+  if (!t) return;
+  t.innerHTML = '';
+  const s = document.createElement('span');
+  s.textContent = mensaje;
+  const b = document.createElement('button');
+  b.className = 'tbtn';
+  b.type = 'button';
+  b.textContent = etiqueta;
+  b.onclick = () => {
+    clearTimeout(toast.t);
+    t.style.display = 'none';
+    try { fn(); } catch (e) { /* la acción avisa por su cuenta si falla */ }
+  };
+  t.appendChild(s);
+  t.appendChild(b);
+  t.style.display = 'flex';
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => { t.style.display = 'none'; }, 8000);
+}
+
 /** Fuerza la descarga de un Blob con el nombre indicado. */
 function download(blob, name) {
   const u = URL.createObjectURL(blob);

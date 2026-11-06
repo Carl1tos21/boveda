@@ -658,12 +658,17 @@ ok('las acciones de adelantos existen',
 JSON.stringify(out);
 """
 
+# El módulo Quin/Adel se reparte en varios archivos (scripts clásicos que
+# comparten el mismo ámbito global). Se cargan EN ORDEN, igual que en index.html.
+QX_FILES = ['js/qx-datos.js', 'js/qx-import.js', 'js/qx-panel.js',
+            'js/qx-adelantos.js', 'js/qx-hojas.js', 'js/qx-pdf.js']
 ctx = quickjs.Context()
-src = STUBS + '\n' + (REPO / 'js/excel-quinquenios.js').read_text(encoding='utf-8') + '\n' + DATA
+qx_src = '\n'.join((REPO / f).read_text(encoding='utf-8') for f in QX_FILES)
+src = STUBS + '\n' + qx_src + '\n' + DATA
 try:
     ctx.eval(src)
 except Exception as e:
-    print('ERROR al cargar excel-quinquenios.js:', e)
+    print('ERROR al cargar el módulo Quin/Adel:', e)
     raise SystemExit(1)
 
 print('=== PANEL DE RRHH: logica verificada con quickjs ===')

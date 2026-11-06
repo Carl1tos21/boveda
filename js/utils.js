@@ -7,8 +7,9 @@
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 
-/** Icono SVG por nombre (ver ICONS en config.js). */
-const ic = n => `<svg class="i" viewBox="0 0 24 24">${ICONS[n] || ''}</svg>`;
+/** Icono SVG por nombre (ver ICONS en config.js). Decorativo: se oculta a
+ *  los lectores de pantalla (el botón que lo envuelve lleva su aria-label). */
+const ic = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[n] || ''}</svg>`;
 
 /** Escapa texto para inyectarlo de forma segura en HTML. */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

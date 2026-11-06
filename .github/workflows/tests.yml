@@ -1,0 +1,46 @@
+name: Pruebas
+
+# Ejecuta la batería de pruebas del proyecto en cada pull request y a mano.
+# (El workflow de despliegue también ejecuta estas pruebas antes de publicar,
+#  para que una versión rota nunca llegue a producción.)
+#
+#   - test/logic-panel.py   -> lógica de Quinquenios/Adelantos con quickjs
+#   - tools/smoke.sh        -> app real en Firefox headless (HTTP + cabeceras)
+#   - tools/filetest.py     -> app real abierta como file:// (doble clic)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Firefox
+        uses: browser-actions/setup-firefox@v1
+
+      - name: Instalar quickjs
+        run: pip install quickjs
+
+      - name: Sintaxis de todos los scripts (quickjs)
+        run: python3 tools/check_js.py
+
+      - name: Lógica del Panel de RRHH (quickjs)
+        run: python3 test/logic-panel.py
+
+      - name: Pruebas E2E servidas (HTTP + cabeceras de seguridad)
+        run: bash tools/smoke.sh
+
+      - name: Pruebas E2E abriendo index.html como file://
+        run: python3 tools/filetest.py

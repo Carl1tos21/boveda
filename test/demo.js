@@ -72,7 +72,7 @@
     await saveInfo({ id: uid(), ord: 2, label: 'Cuenta bancaria', value: 'ES12 3456 7890 1234' });
     await load();
 
-    document.querySelectorAll('.ov').forEach(o => o.remove());
+    closeModal();   // cierra diálogos y suelta el manejador de teclado del modal
 
     // ?panel=1 abre el panel lateral (para la captura de pantalla).
     if (location.search.indexOf('panel') !== -1 && docs.length) {

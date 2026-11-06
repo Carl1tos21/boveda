@@ -182,7 +182,12 @@ Bóveda/
 │   ├── gdrive-config.js    # ⚙️ AQUÍ pegas tu ID de cliente de Google
 │   ├── gdrive.js           # Login con Google, API de Drive y motor de sincronización
 │   ├── app.js              # Acciones, delegación de eventos, PWA y arranque
-│   ├── excel-quinquenios.js # Quin/Adel: base cifrada, hojas del Excel, ficha y PDF
+│   ├── qx-datos.js         # Quin/Adel (1/6): base cifrada, utilidades y persistencia
+│   ├── qx-import.js        # Quin/Adel (2/6): importación de Excel y base incluida
+│   ├── qx-panel.js         # Quin/Adel (3/6): Panel de RRHH (vencimientos, avance)
+│   ├── qx-adelantos.js     # Quin/Adel (4/6): adelantos, gestión, constancia, historial
+│   ├── qx-hojas.js         # Quin/Adel (5/6): hoja de cálculo (MACRO · Hoja 1 · Hoja 3) y ficha
+│   ├── qx-pdf.js           # Quin/Adel (6/6): impresión PDF, mapeo y mapa de acciones
 │   ├── excel.js            # Vista «Excel»: abrir hojas de cálculo con un Excel real
 │   ├── onedrive.js         # Excel Online (Microsoft): permiso, subida y sincronización
 │   └── ms-auth.js          # Página de retorno del inicio de sesión de Microsoft
@@ -564,6 +569,7 @@ Aun así, **mantén siempre un respaldo exportado**: es tu seguro real.
 ## Pruebas
 
 ```bash
+python3 tools/check_js.py           # sintaxis de todos los scripts (quickjs)
 bash tools/smoke.sh                 # código fuente, servida por HTTP + cabeceras
 bash tools/smoke.sh 5173 dist       # la carpeta dist/ ya construida
 python3 tools/filetest.py           # código fuente abierto como file://

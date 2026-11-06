@@ -308,7 +308,7 @@ function lockNow() {
   urls.forEach(URL.revokeObjectURL); urls = [];
   murls.forEach(URL.revokeObjectURL); murls = [];
   clearTimeout(idleT);
-  $$('.ov').forEach(o => o.remove());
+  closeModal();      // cierra los diálogos y suelta el teclado/object URLs
   closeDrawer();
   closeScan();
   showLock();

@@ -1,5 +1,6 @@
 # ---- Artefactos de compilación (se regeneran con tools/build.py) ----
 dist/
+boveda-dist.zip
 
 # ---- Restos de Python ----
 tools/__pycache__/

@@ -38,7 +38,7 @@ INCLUDE = [
     'data',
 ]
 
-EXCLUDE_NAMES = {'.DS_Store', 'Thumbs.db', '__pycache__'}
+EXCLUDE_NAMES = {'.DS_Store', 'Thumbs.db', '__pycache__', 'README.md'}
 EXCLUDE_SUFFIX = {'.pyc', '.pyo', '.map'}
 
 

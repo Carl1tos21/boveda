@@ -1,11 +1,12 @@
 /* ==========================================================================
    Bóveda · Hoja de estilos
-   Extraída del archivo original (monolito HTML) sin cambios visuales.
+   Sistema visual con aspecto empresarial (paleta navy corporativa). Al final
+   del archivo está la sección «APARIENCIA EMPRESARIAL» con los ajustes de tema.
    ========================================================================== */
 
-:root{--bg:#f8fafc;--card:#fff;--tx:#0f172a;--mu:#5a6478;--bd:#e2e8f0;--ac:#2563eb;--ac2:#eff6ff;--dg:#b91c1c;--sh:0 1px 2px rgba(15,23,42,.06),0 6px 18px rgba(15,23,42,.07);color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#141b2d;--tx:#e7ecf5;--mu:#9aa7c2;--bd:#25304a;--ac:#7ba2ff;--ac2:#1b2740;--dg:#ff8a80;--sh:0 1px 2px rgba(0,0,0,.45);color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0b1220;--card:#141b2d;--tx:#e7ecf5;--mu:#9aa7c2;--bd:#25304a;--ac:#7ba2ff;--ac2:#1b2740;--dg:#ff8a80;--sh:0 1px 2px rgba(0,0,0,.45);color-scheme:dark}
+:root{--bg:#f2f5f9;--card:#fff;--tx:#0f1729;--mu:#586a83;--bd:#dce3ed;--ac:#1d4ed8;--ac2:#e9eefb;--dg:#b42318;--sh:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.10);--rail:#0f1b33;--rail2:#17233f;--rtx:#9db0cc;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#141d31;--tx:#e6ecf7;--mu:#94a3bd;--bd:#243149;--ac:#6b9bff;--ac2:#17233c;--dg:#ff8a80;--sh:0 1px 2px rgba(0,0,0,.45);--rail:#0a101f;--rail2:#141f38;--rtx:#8697b6;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b1220;--card:#141d31;--tx:#e6ecf7;--mu:#94a3bd;--bd:#243149;--ac:#6b9bff;--ac2:#17233c;--dg:#ff8a80;--sh:0 1px 2px rgba(0,0,0,.45);--rail:#0a101f;--rail2:#141f38;--rtx:#8697b6;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 [hidden]{display:none!important}
 *{box-sizing:border-box}
@@ -443,3 +444,64 @@ img.pvsp{object-fit:contain}
 .helpbody{max-height:58vh;overflow:auto;padding-right:4px}
 .helpbody .pn{margin-bottom:10px}
 .helpbody code{background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:1px 5px;font-size:12.5px;word-break:break-all}
+
+/* ==========================================================================
+   APARIENCIA EMPRESARIAL · rediseño corporativo
+   Solo estética (colores, bordes, sombras y jerarquía). No cambia la
+   estructura ni el comportamiento de la aplicación.
+   ========================================================================== */
+
+/* --- Riel lateral: navy corporativo, marca arriba y estado activo --- */
+.rail{width:68px;background:linear-gradient(180deg,var(--rail),#0a1326);border-right:1px solid rgba(255,255,255,.06);gap:4px;padding:14px 0 46px}
+.rail-brand{display:grid;place-items:center;width:100%;padding:0 0 10px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.rail-brand .rb-logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#2563eb,#0b2d78);display:grid;place-items:center;color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.45)}
+.rail-brand .rb-logo svg{width:21px;height:21px}
+.rb{width:44px;height:44px;border-radius:10px;color:var(--rtx)}
+.rb:hover{background:rgba(255,255,255,.08);color:#fff}
+.rb.on{background:var(--rail2);color:#fff;box-shadow:inset 3px 0 0 var(--ac)}
+.rb.add{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-radius:11px;box-shadow:0 4px 14px rgba(37,99,235,.42)}
+.rb.add:hover{background:linear-gradient(135deg,#3b82f6,#2563eb)}
+.rail .sep{width:30px;background:rgba(255,255,255,.12)}
+
+/* --- Barra superior: limpia, con sombra sutil --- */
+.top{box-shadow:0 1px 2px rgba(16,24,40,.05)}
+.tb-brand span{background:linear-gradient(135deg,#2563eb,#0b2d78);border-radius:8px}
+@media(min-width:861px){.tb-brand span{display:none}}   /* la marca vive en el riel */
+.sr input{background:var(--bg);border-radius:8px}
+.ibtn{border-radius:8px}
+.who{border-radius:8px}
+.ava{background:linear-gradient(135deg,#3b4a63,#1e293b)}
+
+/* --- Botones, campos y chips --- */
+.btn{border-radius:8px}
+.btn.p{box-shadow:0 1px 2px rgba(29,78,216,.22)}
+input,select,textarea{border-radius:8px}
+.chip{border-radius:8px}
+
+/* --- Tarjetas, paneles y modales: radio contenido y sombra fina --- */
+.card,.pn,.tree,.empty,.qxc,.qxtools,.qxdep{border-radius:12px}
+.md{border-radius:14px}
+.lk{border-radius:16px}
+.qxgrid{border-radius:10px}
+.tile{border-radius:8px}
+/* Diálogos: título con separador (estilo ventana de escritorio) */
+.md>h2:first-child{padding:0 0 12px;margin:0 0 14px;border-bottom:1px solid var(--bd);font-size:16px;font-weight:700;letter-spacing:.01em}
+
+/* --- Navegación inferior (móvil) --- */
+.bot{box-shadow:0 -1px 2px rgba(16,24,40,.05)}
+.bot button{border-radius:10px}
+.bot .sc{background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:13px;width:52px;height:52px}
+
+/* --- Barra de estado: marco oscuro tipo app de escritorio --- */
+.status{background:var(--rail);border-top:0;color:var(--rtx)}
+.status .ok{color:#5eead4}
+.status button{color:var(--rtx)}
+.status button:hover{background:rgba(255,255,255,.10);color:#fff}
+
+/* --- Pantalla de bloqueo: fondo corporativo sobrio --- */
+#lock{background:linear-gradient(160deg,#0a1730,#122c63)}
+.lk{box-shadow:0 24px 60px rgba(3,10,26,.45)}
+.lk .logo{background:linear-gradient(135deg,#2563eb,#0b2d78);border-radius:14px}
+
+/* --- Aviso flotante: navy corporativo --- */
+#toast{background:var(--rail);border:1px solid rgba(255,255,255,.08)}

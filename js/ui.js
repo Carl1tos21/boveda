@@ -16,32 +16,33 @@ function initials(s) {
 /** Construye los elementos fijos de la interfaz (una sola vez). */
 function chrome() {
   $('#rail').innerHTML =
-    `<button class="rb add" data-a="new" title="Agregar documento">${ic('plus')}</button>
+    `<div class="rail-brand" aria-hidden="true"><span class="rb-logo">${ic('sh')}</span></div>
+     <button class="rb add" data-a="new" title="Agregar documento" aria-label="Agregar documento">${ic('plus')}</button>
      <div id="nav">
-       <button class="rb" data-v="docs" title="Mi bóveda">${ic('sh')}</button>
-       <button class="rb" data-v="info" title="Mis datos">${ic('id')}</button>
-       <button class="rb" data-v="qx" title="Quinquenios y Adelantos">${ic('clock')}</button>
-       <button class="rb" data-v="xls" title="Excel">${ic('file')}</button>
-       <button class="rb" data-a="scan" title="Escanear documento">${ic('scan')}</button>
-       <button class="rb" data-a="sharepick" title="Compartir un documento">${ic('share')}</button>
-       <button class="rb" data-a="help" title="Ayuda">${ic('help')}</button>
+       <button class="rb" data-v="docs" title="Mi bóveda" aria-label="Mi bóveda">${ic('sh')}</button>
+       <button class="rb" data-v="info" title="Mis datos" aria-label="Mis datos">${ic('id')}</button>
+       <button class="rb" data-v="qx" title="Quinquenios y Adelantos" aria-label="Quinquenios y Adelantos">${ic('clock')}</button>
+       <button class="rb" data-v="xls" title="Excel" aria-label="Excel">${ic('file')}</button>
+       <button class="rb" data-a="scan" title="Escanear documento" aria-label="Escanear documento">${ic('scan')}</button>
+       <button class="rb" data-a="sharepick" title="Compartir un documento" aria-label="Compartir un documento">${ic('share')}</button>
+       <button class="rb" data-a="help" title="Ayuda" aria-label="Ayuda">${ic('help')}</button>
      </div>
      <span class="sep"></span>
-     <button class="rb" data-v="set" title="Ajustes">${ic('cfg')}</button>
+     <button class="rb" data-v="set" title="Ajustes" aria-label="Ajustes">${ic('cfg')}</button>
      <div class="sp"></div>
-     <button class="rb" data-a="lockn" title="Bloquear ahora">${ic('lock')}</button>`;
+     <button class="rb" data-a="lockn" title="Bloquear ahora" aria-label="Bloquear ahora">${ic('lock')}</button>`;
 
   $('#topbar').innerHTML =
     `<div class="tb-brand"><span>${ic('sh')}</span><b>Bóveda</b></div>
      <div class="sr" id="srw"></div>
-     <button class="ibtn" data-a="filtermenu" title="Ordenar y mostrar">${ic('filter')}</button>
+     <button class="ibtn" data-a="filtermenu" title="Ordenar y mostrar" aria-label="Ordenar y mostrar">${ic('filter')}</button>
      <div class="sp"></div>
-     <button class="ibtn" data-a="scan" title="Escanear">${ic('scan')}</button>
-     <div class="who" id="who" data-a="whomenu" title="Tu cuenta"></div>`;
+     <button class="ibtn" data-a="scan" title="Escanear" aria-label="Escanear">${ic('scan')}</button>
+     <div class="who" id="who" data-a="whomenu" title="Tu cuenta" aria-label="Tu cuenta"></div>`;
 
   const esMac = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
-  $('#srw').innerHTML = ic('search') + '<input id="q" placeholder="Buscar en tu bóveda...">' +
-    `<span class="kbd"><kbd>${esMac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></span>`;
+  $('#srw').innerHTML = ic('search') + '<input id="q" placeholder="Buscar en tu bóveda..." aria-label="Buscar en tu bóveda">' +
+    `<span class="kbd" aria-hidden="true"><kbd>${esMac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></span>`;
   $('#q').oninput = e => {
     qs = e.target.value.toLowerCase();
     if (view !== 'docs') view = 'docs';
@@ -53,7 +54,7 @@ function chrome() {
      <button data-v="info">${ic('id')}Datos</button>
      <button data-v="qx">${ic('clock')}Quin/Adel</button>
      <button data-v="xls">${ic('file')}Excel</button>
-     <button class="sc" data-a="scan">${ic('scan')}</button>
+     <button class="sc" data-a="scan" aria-label="Escanear">${ic('scan')}</button>
      <button data-a="new">${ic('plus')}Subir</button>
      <button data-v="set">${ic('cfg')}Ajustes</button>`;
 
@@ -152,22 +153,84 @@ function saveButtonOf(cont) {
 
 /* ===================== Modales ===================== */
 
+/* Estado del diálogo abierto (accesibilidad: foco y teclado). */
+let modalKeyHandler = null;
+let modalPrevFocus = null;
+
+/**
+ * Mantiene el foco (Tab / Shift+Tab) dentro del diálogo abierto.
+ * Sin esto, el foco se escaparía a la página que hay detrás.
+ */
+function modalTrapTab(e, box) {
+  const focusables = Array.from(box.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]),' +
+    ' select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.getClientRects().length);
+
+  if (!focusables.length) { e.preventDefault(); box.focus(); return; }
+
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const act = document.activeElement;
+
+  if (e.shiftKey && (act === first || act === box || !box.contains(act))) {
+    e.preventDefault(); last.focus();
+  } else if (!e.shiftKey && (act === last || !box.contains(act))) {
+    e.preventDefault(); first.focus();
+  }
+}
+
 /** Abre un modal. big=true usa el diálogo grande (visor de documentos). */
 function openModal(html, big) {
   closeModal();
   const ov = document.createElement('div');
   ov.className = 'ov';
-  ov.innerHTML = `<div class="md${big ? ' big' : ''}">${html}</div>`;
+  ov.innerHTML = `<div class="md${big ? ' big' : ''}" role="dialog" aria-modal="true" tabindex="-1">${html}</div>`;
+  const box = ov.firstElementChild;
+
+  /* Etiqueta accesible = el primer <h2> del diálogo, si lo hay. */
+  const titulo = box.querySelector('h2');
+  if (titulo) {
+    if (!titulo.id) titulo.id = 'mdtitle-' + uid();
+    box.setAttribute('aria-labelledby', titulo.id);
+  }
+
   ov.addEventListener('click', e => { if (e.target === ov) closeModal(); });
+
+  /* Se recuerda dónde estaba el foco para devolvérselo al cerrar. */
+  modalPrevFocus = document.activeElement;
+
+  /* Escape cierra; Tab queda atrapado dentro del diálogo. */
+  modalKeyHandler = e => {
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+    if (e.key === 'Tab') modalTrapTab(e, box);
+  };
+  document.addEventListener('keydown', modalKeyHandler, true);
+
   document.body.appendChild(ov);
+
+  /* Foco inicial: el primer campo/botón, o el propio diálogo. */
+  const first = box.querySelector(
+    'input:not([type="hidden"]):not([disabled]), select:not([disabled]),' +
+    ' textarea:not([disabled]), button:not([disabled])'
+  );
+  (first || box).focus();
   return ov;
 }
 
-/** Cierra todos los modales y libera sus object URLs. */
+/** Cierra todos los modales, suelta el teclado y libera sus object URLs. */
 function closeModal() {
+  if (modalKeyHandler) {
+    document.removeEventListener('keydown', modalKeyHandler, true);
+    modalKeyHandler = null;
+  }
   $$('.ov').forEach(o => o.remove());
   murls.forEach(URL.revokeObjectURL);
   murls = [];
+  if (modalPrevFocus && typeof modalPrevFocus.focus === 'function') {
+    try { modalPrevFocus.focus(); } catch (e) { /* el elemento ya no está */ }
+  }
+  modalPrevFocus = null;
 }
 
 /** Diálogo de confirmación reutilizable. */

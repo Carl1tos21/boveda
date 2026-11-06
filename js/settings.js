@@ -25,7 +25,7 @@ function applyTheme() {
 
   const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
   const m = $('meta[name=theme-color]');
-  if (m) m.setAttribute('content', dark ? '#0f1b3d' : '#f3f5fa');
+  if (m) m.setAttribute('content', dark ? '#0f1b33' : '#f2f5f9');
 }
 
 /* ----------------------------- Ajustes --------------------------------- */

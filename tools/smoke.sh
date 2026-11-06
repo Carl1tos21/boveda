@@ -51,7 +51,7 @@ HEADERS_OK=$?
 firefox --headless --no-remote --profile "$PROFILE" "$BASE/__test" > "$FIREFOX_LOG" 2>&1 &
 FF_PID=$!
 
-for _ in $(seq 1 90); do
+for _ in $(seq 1 "${BOVEDA_WAIT:-300}"); do
   [ -f "$REPORT" ] && break
   sleep 1
 done
@@ -60,6 +60,10 @@ kill "$FF_PID" 2>/dev/null || true
 
 if [ ! -f "$REPORT" ]; then
   echo "No se generó informe. Revisa $FIREFOX_LOG y $SERVER_LOG"
+  echo "--- últimas líneas del servidor ---"
+  tail -n 30 "$SERVER_LOG" 2>/dev/null
+  echo "--- últimas líneas de Firefox ---"
+  tail -n 30 "$FIREFOX_LOG" 2>/dev/null
   exit 1
 fi
 

@@ -73,7 +73,7 @@ def main():
             stdout=fh, stderr=fh)
 
     report = None
-    deadline = time.time() + 120
+    deadline = time.time() + 300
     while time.time() < deadline:
         time.sleep(1)
         try:

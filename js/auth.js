@@ -29,7 +29,7 @@ function paintLock() {
   $('#lp').hidden = false;
   $('#lp2').hidden = true;
   $('#lb').hidden = false;
-  $('#lb').disabled = true;
+  $('#lb').disabled = false;   // no bloquear el botón: se configura en showLock()
   $('#lb').textContent = 'Cargando…';
   $('#lshowpw').hidden = true;
   $('#le').textContent = '';
@@ -47,12 +47,9 @@ async function showLock() {
   let m = null;
   try { m = await getMeta(); } catch (e) { mem = true; m = null; }
 
-  const rec = m ? await getDeviceKeyRec() : null;
-  const google = canUseGoogle();
-  const useGoogle = !!rec && google && prefs.rememberDevice;
-
+  const btn = $('#lb');
   const btnG = $('#lgbtn'), or = $('#lor'), pw = $('#lp'), pw2 = $('#lp2'),
-    btn = $('#lb'), link = $('#lshowpw');
+    link = $('#lshowpw');
 
   btn.disabled = false;
 
@@ -67,6 +64,7 @@ async function showLock() {
     btn.textContent = 'Crear ' + APP_NAME;
     pw.value = pw2.value = '';
 
+    const google = canUseGoogle();
     if (google) {
       btnG.hidden = false;
       btnG.innerHTML = '<span class="gmark">G</span>Traer mi bóveda de Google Drive';
@@ -78,6 +76,10 @@ async function showLock() {
   }
 
   /* ---- Hay llave guardada: se entra con Google, sin contraseña ---- */
+  const rec = m ? await getDeviceKeyRec() : null;
+  const google = canUseGoogle();
+  const useGoogle = !!rec && google && prefs.rememberDevice;
+
   if (useGoogle) {
     mode = 'google';
     $('#lt').textContent = APP_NAME + ' segura';
@@ -132,8 +134,17 @@ async function unlockWith(k, remember) {
   $('#app').hidden = false;
   $('#view').innerHTML = '<div class="mu" style="padding:40px 0">Descifrando tu bóveda…</div>';
 
-  await migrate();
-  await load();
+  try {
+    await migrate();
+    await load();
+  } catch (e) {
+    // Si falla la carga, al menos mostrar la app vacía para no quedar bloqueado
+    docs = [];
+    info = [];
+    folders = [];
+    render();
+    console.error('Error cargando la bóveda tras desbloquear:', e);
+  }
   bump();
   maybeShowInstallHint();
   driveAutoSync();

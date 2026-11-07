@@ -108,7 +108,7 @@
       step('#app visible tras desbloquear', !$('#app').hidden);
       step('estado vacío en Documentos', await until(() => /Tu bóveda está vacía/.test($('#view').innerHTML)));
       step('barra lateral construida', $('#nav').children.length >= 5, $('#nav').children.length);
-      step('navegación inferior construida', $('#bot').children.length === 6, $('#bot').children.length);
+      step('navegación inferior construida', $('#bot').children.length === 7, $('#bot').children.length);
 
       /* ---------------- 2. Alta de documento ---------------- */
       const img = await makeImageFile('informe-secreto.jpg', 900, 700);

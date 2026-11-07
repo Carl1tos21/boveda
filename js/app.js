@@ -326,6 +326,13 @@ function maybeShowInstallHint() {
     await initStore();
     await showLock();
 
+    // Después de showLock(), asegurar que el botón de bloqueo tenga el texto correcto
+    // (defensa en profundidad por si showLock() no lo establece).
+    const btn = $('#lb');
+    if (btn && !btn.disabled && btn.textContent === 'Cargando…') {
+      btn.textContent = 'Crear ' + APP_NAME;
+    }
+
     // App instalable + datos a salvo de limpiezas automáticas del navegador.
     registerSW();
     requestPersistence();

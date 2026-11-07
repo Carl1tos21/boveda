@@ -44,14 +44,16 @@ function paintLock() {
 async function showLock() {
   paintLock();
 
-  let m = null;
-  try { m = await getMeta(); } catch (e) { mem = true; m = null; }
-
   const btn = $('#lb');
   const btnG = $('#lgbtn'), or = $('#lor'), pw = $('#lp'), pw2 = $('#lp2'),
     link = $('#lshowpw');
 
   btn.disabled = false;
+  // Valor por defecto: modo creación (si algo falla, al menos es usable)
+  btn.textContent = 'Crear ' + APP_NAME;
+
+  let m = null;
+  try { m = await getMeta(); } catch (e) { mem = true; m = null; }
 
   /* ---- Sin bóveda en este dispositivo: crear o traer de Drive ---- */
   if (!m) {
@@ -61,7 +63,6 @@ async function showLock() {
     pw.hidden = false;
     pw2.hidden = false;
     btn.hidden = false;
-    btn.textContent = 'Crear ' + APP_NAME;
     pw.value = pw2.value = '';
 
     const google = canUseGoogle();

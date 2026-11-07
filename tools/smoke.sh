@@ -46,6 +46,7 @@ echo "== Servidor: $(head -1 "$SERVER_LOG" 2>/dev/null) =="
 # --- 1. Cabeceras de seguridad -------------------------------------------
 python3 "$ROOT/tools/check_headers.py" "$BASE/index.html"
 HEADERS_OK=$?
+[ "$HEADERS_OK" -ne 0 ] && echo "::error::Fallo en las cabeceras de seguridad (ver arriba)"
 
 # --- 2. Prueba funcional en el navegador ---------------------------------
 firefox --headless --no-remote --profile "$PROFILE" "$BASE/__test" > "$FIREFOX_LOG" 2>&1 &
@@ -60,6 +61,7 @@ kill "$FF_PID" 2>/dev/null || true
 
 if [ ! -f "$REPORT" ]; then
   echo "No se generó informe. Revisa $FIREFOX_LOG y $SERVER_LOG"
+  echo "::error::No se generó el informe de la E2E (posible timeout o fallo de Firefox)"
   echo "--- últimas líneas del servidor ---"
   tail -n 30 "$SERVER_LOG" 2>/dev/null
   echo "--- últimas líneas de Firefox ---"
@@ -74,15 +76,23 @@ data = json.load(open(sys.argv[1], encoding='utf-8'))
 for s in data['steps']:
     mark = 'PASS' if s['ok'] else 'FAIL'
     extra = '' if s['extra'] is None else '  ' + json.dumps(s['extra'], ensure_ascii=False)
-    print('[%s] %s%s' % (mark, s['name'], extra))
+    line = '[%s] %s%s' % (mark, s['name'], extra)
+    print(line)
+    if not s['ok']:
+        # Publica el fallo como ANOTACIÓN de GitHub (visible sin abrir el log).
+        print('::error::%s' % line[:900])
 
 if data.get('errors'):
     print('\nErrores de JavaScript capturados:')
     for e in data['errors']:
         print('  -', e)
+        print('::error::JS ERROR: %s' % str(e)[:900])
 
 ok = sum(1 for s in data['steps'] if s['ok'])
-print('\n%d/%d comprobaciones OK' % (ok, len(data['steps'])))
+resumen = '%d/%d comprobaciones OK' % (ok, len(data['steps']))
+print('\n' + resumen)
+if not data['ok']:
+    print('::error::E2E: %s' % resumen)
 sys.exit(0 if data['ok'] else 1)
 PY
 BODY_OK=$?

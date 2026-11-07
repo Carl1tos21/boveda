@@ -23,7 +23,10 @@ function openDB() {
 /** Inicializa la conexión; si falla activa el modo memoria. */
 async function initStore() {
   try {
-    db = await openDB();
+    db = await Promise.race([
+      openDB(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('IndexedDB timeout')), 5000))
+    ]);
   } catch (e) {
     mem = true;
     console.warn('IndexedDB no disponible, usando memoria volátil:', e);

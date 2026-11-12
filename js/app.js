@@ -30,8 +30,6 @@ const ACTIONS = {
   drvremove: el => driveRemoveCopy(el.dataset.id),
   movedlg: el => moveDocDialog(el.dataset.id),
   moveto: el => moveDocFromDialog(el.dataset.id, el.dataset.f),
-  pvsheet: el => pvSheet(el.dataset.s),
-
   /* Compartir */
   share: el => shareDoc(el.dataset.id),
   sharepick: () => sharePicker(),
@@ -156,8 +154,6 @@ const ACTIONS = {
   qxexportxlsx: () => QxActions.qxexportxlsx(),
 
   /* Excel */
-  xlsonline: el => MsActions.openExcelOnline(el && el.dataset ? el.dataset.id : null),
-  xlsopen: el => XlsActions.openInExcel(el.dataset.id),
   msconfig: () => MsActions.msSetupDialog(),
   msdisconnect: () => MsActions.msDisconnect(),
   mspull: el => MsActions.msPullManual(el.dataset.id)

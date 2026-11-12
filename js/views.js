@@ -27,6 +27,7 @@ function tileColor(name) {
 
 /** ¿Pasa el documento la búsqueda y el filtro activos? */
 function passesFilter(d) {
+  if (d.cat === '_qx') return false;   // registro interno de la vista Quin/Adel
   const hay = ((d.name || '') + (d.notes || '') + (d.cat || '') + (d.file || '')).toLowerCase();
   if (qs && !hay.includes(qs)) return false;
 
@@ -53,7 +54,7 @@ function allFolderNames(list) {
   const s = new Set(folders);
   for (const d of list) {
     const k = d.cat || 'General';
-    s.add(k);
+    if (k !== '_qx') s.add(k);   // '_qx' es interna (base de Quin/Adel)
   }
   return Array.from(s).filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'));
 }
@@ -71,7 +72,7 @@ function toggleFolder(name) {
 
 function renderDocs() {
   const v = $('#view');
-  const tot = docs.reduce((a, d) => a + d.size, 0);
+  const tot = docs.filter(d => d.cat !== '_qx').reduce((a, d) => a + d.size, 0);
   const list = sortedDocs();
   const mode = prefs.viewMode || 'list';
   const hayAlgo = list.length > 0 || folders.length > 0;   // las carpetas vacías también cuentan
@@ -91,7 +92,7 @@ function renderDocs() {
     ${hayAlgo
       ? (mode === 'grid' && list.length ? gridHtml(list) : treeHtml(list, mode === 'rows'))
       : emptyHtml()}
-    <div class="mu" style="margin-top:14px">${docs.length} archivo${docs.length === 1 ? '' : 's'} · ${fmt(tot)} · cifrados${qs ? ' · buscando «' + esc(qs) + '»' : ''}</div>`;
+    <div class="mu" style="margin-top:14px">${docs.filter(d => d.cat !== '_qx').length} archivo${docs.filter(d => d.cat !== '_qx').length === 1 ? '' : 's'} · ${fmt(tot)} · cifrados${qs ? ' · buscando «' + esc(qs) + '»' : ''}</div>`;
 
   thumbnails(list);
 }

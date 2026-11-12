@@ -30,6 +30,8 @@ const ACTIONS = {
   drvremove: el => driveRemoveCopy(el.dataset.id),
   movedlg: el => moveDocDialog(el.dataset.id),
   moveto: el => moveDocFromDialog(el.dataset.id, el.dataset.f),
+  pvsheet: el => pvSheet(el.dataset.s),
+
   /* Compartir */
   share: el => shareDoc(el.dataset.id),
   sharepick: () => sharePicker(),
@@ -154,6 +156,8 @@ const ACTIONS = {
   qxexportxlsx: () => QxActions.qxexportxlsx(),
 
   /* Excel */
+  xlsonline: el => MsActions.openExcelOnline(el && el.dataset ? el.dataset.id : null),
+  xlsopen: el => XlsActions.openInExcel(el.dataset.id),
   msconfig: () => MsActions.msSetupDialog(),
   msdisconnect: () => MsActions.msDisconnect(),
   mspull: el => MsActions.msPullManual(el.dataset.id)
@@ -302,61 +306,37 @@ function maybeShowInstallHint() {
 
 /* --------------------------- Arranque ---------------------------------- */
 (async function init() {
-  try {
-    loadPrefs();
-    applyTheme();
-    chrome();
-    registerSW();
-    paintLock();          // pantalla de bloqueo visible ya, sin esperar a IndexedDB
+  loadPrefs();
+  applyTheme();
+  chrome();
+  registerSW();
+  paintLock();          // pantalla de bloqueo visible ya, sin esperar a IndexedDB
 
-    // Pantalla de bloqueo.
-    $('#lb').onclick = submit;
-    ['#lp', '#lp2'].forEach(sel => {
-      const el = $(sel);
-      if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
-    });
+  // Pantalla de bloqueo.
+  $('#lb').onclick = submit;
+  ['#lp', '#lp2'].forEach(sel => {
+    const el = $(sel);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  });
 
-    // Reaplica el tema si cambia la preferencia del sistema.
-    try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) { }
+  // Reaplica el tema si cambia la preferencia del sistema.
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (e) { }
 
-    await initStore();
-    await showLock();
+  await initStore();
+  await showLock();
 
-    // Después de showLock(), asegurar que el botón de bloqueo tenga el texto correcto
-    // (defensa en profundidad por si showLock() no lo establece).
-    const btn = $('#lb');
-    if (btn && !btn.disabled && btn.textContent === 'Cargando…') {
-      btn.textContent = 'Crear ' + APP_NAME;
+  // App instalable + datos a salvo de limpiezas automáticas del navegador.
+  registerSW();
+  requestPersistence();
+
+  // Handle de depuración: expone el estado para las pruebas y la consola.
+  window.Boveda = {
+    get state() {
+      return {
+        view, qs, mem, unlocked: !!key, dbReady: !!db, docs, info, prefs, scan,
+        drawer: drawerId,
+        drive: { ready: gdriveReady(), connected: driveConnected() }
+      };
     }
-
-    // App instalable + datos a salvo de limpiezas automáticas del navegador.
-    registerSW();
-    requestPersistence();
-
-    // Handle de depuración: expone el estado para las pruebas y la consola.
-    window.Boveda = {
-      get state() {
-        return {
-          view, qs, mem, unlocked: !!key, dbReady: !!db, docs, info, prefs, scan,
-          drawer: drawerId,
-          drive: { ready: gdriveReady(), connected: driveConnected() }
-        };
-      }
-    };
-  } catch (e) {
-    // Si algo falla durante el arranque, asegurar que el botón de bloqueo sea usable
-    const btn = $('#lb');
-    if (btn) { btn.disabled = false; btn.textContent = 'Crear ' + APP_NAME; }
-    $('#lock').style.display = 'flex';
-    $('#app').hidden = true;
-    // Expón Boveda aunque sea parcial, para que las pruebas no fallen en el paso 0
-    window.Boveda = {
-      get state() {
-        return { view, qs, mem, unlocked: !!key, dbReady: !!db, docs, info, prefs, scan,
-          drawer: drawerId,
-          drive: { ready: false, connected: false } };
-      }
-    };
-    console.error('Error en el arranque de Bóveda:', e);
-  }
+  };
 })();

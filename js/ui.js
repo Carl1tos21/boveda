@@ -21,6 +21,7 @@ function chrome() {
      <div id="nav">
        <button class="rb" data-v="docs" title="Mi bóveda" aria-label="Mi bóveda">${ic('sh')}</button>
        <button class="rb" data-v="info" title="Mis datos" aria-label="Mis datos">${ic('id')}</button>
+       <button class="rb" data-v="qx" title="Adelantos y Quinquenios" aria-label="Adelantos y Quinquenios">${ic('clock')}</button>
        <button class="rb" data-a="scan" title="Escanear documento" aria-label="Escanear documento">${ic('scan')}</button>
        <button class="rb" data-a="sharepick" title="Compartir un documento" aria-label="Compartir un documento">${ic('share')}</button>
        <button class="rb" data-a="help" title="Ayuda" aria-label="Ayuda">${ic('help')}</button>
@@ -50,6 +51,7 @@ function chrome() {
   $('#bot').innerHTML =
     `<button data-v="docs">${ic('file')}Docs</button>
      <button data-v="info">${ic('id')}Datos</button>
+     <button data-v="qx">${ic('clock')}Adelantos y Quinquenios</button>
      <button class="sc" data-a="scan" aria-label="Escanear">${ic('scan')}</button>
      <button data-a="new">${ic('plus')}Subir</button>
      <button data-v="set">${ic('cfg')}Ajustes</button>`;

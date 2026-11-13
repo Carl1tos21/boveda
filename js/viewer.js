@@ -134,7 +134,7 @@ async function openViewer(doc) {
 
     switch (type) {
       case 'pdf':
-        renderPdf(blob, doc.name, container);
+        renderPdf(await blob.arrayBuffer(), doc.name, container);
         break;
       case 'docx':
         renderDocx(blob, container);

@@ -6,6 +6,184 @@
 
 :root{--bg:#f2f5f9;--card:#fff;--tx:#0f1729;--mu:#586a83;--bd:#dce3ed;--ac:#1d4ed8;--ac2:#e9eefb;--dg:#b42318;--sh:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.10);--rail:#0f1b33;--rail2:#17233f;--rtx:#9db0cc;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#141d31;--tx:#e6ecf7;--mu:#94a3bd;--bd:#243149;--ac:#6b9bff;--ac2:#17233c;--dg:#ff8a80;--sh:0 1px 2px rgba(0,0,0,.45);--rail:#0a101f;--rail2:#141f38;--rtx:#8697b6;color-scheme:dark}}
+/* ==================== VISOR DE DOCUMENTOS ==================== */
+
+/* Overlay que cubre toda la pantalla */
+#viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 30, .92);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Contenedor del visor */
+.viewer {
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, .45);
+  width: 100%;
+  max-width: 1200px;
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--tx);
+}
+
+/* Cabecera del visor */
+.viewer .vhead {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--bd);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+  background: var(--card);
+}
+
+.viewer .vhead h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  color: var(--tx);
+}
+
+.viewer .vhead .mu {
+  font-size: 12.5px;
+  color: var(--mu);
+  margin: 0;
+}
+
+.viewer .vhead .fx {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.viewer .vhead .btn {
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 13px;
+  color: var(--tx);
+  cursor: pointer;
+}
+
+.viewer .vhead .btn:hover {
+  background: var(--ac2);
+  border-color: var(--ac);
+}
+
+/* Contenedor de las páginas */
+.viewer-wrap {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  position: relative;
+  background: var(--bg);
+}
+
+.viewer .viewer-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+}
+
+.viewer .pdf-page {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+  object-fit: contain;
+}
+
+.viewer .viewer-text {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--tx);
+  margin: 0;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  overflow-x: auto;
+  min-height: 120px;
+}
+
+.viewer .viewer-text .dim {
+  color: var(--mu);
+}
+
+/* Paginación */
+.viewer .pager {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.viewer .pager .prev,
+.viewer .pager .next {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--ac2);
+  border: 1px solid var(--ac);
+  color: var(--ac);
+  font-size: 20px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background .12s;
+}
+
+.viewer .pager .prev:hover,
+.viewer .pager .next:hover {
+  background: var(--ac);
+  color: #fff;
+}
+
+/* Pie del visor */
+.viewer-foot {
+  padding: 10px 18px;
+  border-top: 1px solid var(--bd);
+  font-size: 12px;
+  color: var(--mu);
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+/* Estado de carga */
+.viewer .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--bg);
+  border-top-color: var(--ac);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 10px auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Agregar esta regla a styles.css */
+
 :root[data-theme="dark"]{--bg:#0b1220;--card:#141d31;--tx:#e6ecf7;--mu:#94a3bd;--bd:#243149;--ac:#6b9bff;--ac2:#17233c;--dg:#ff8a80;--sh:0 1px 2px rgba(0,0,0,.45);--rail:#0a101f;--rail2:#141f38;--rtx:#8697b6;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 [hidden]{display:none!important}

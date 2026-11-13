@@ -278,6 +278,7 @@ async function openDocDrawer(id, tab) {
         <button class="btn" data-a="pdf" data-id="${d.id}">${ic('file')}PDF</button>
         <button class="btn" data-a="drvview" data-id="${d.id}">${ic('cloud')}Drive</button>
         <button class="btn" data-a="pr" data-id="${d.id}">${ic('pr')}Imprimir</button>
+        <button class="btn" data-a="viewdoc" data-id="${d.id}">${ic('eye')}Ver documento</button>
         <button class="btn" data-a="fav" data-id="${d.id}">${ic(d.fav ? 'starOn' : 'star')}${d.fav ? 'En favoritos' : 'Favorito'}</button>
         <button class="btn d" data-a="rm" data-id="${d.id}">${ic('tr')}Eliminar</button>
       </div>

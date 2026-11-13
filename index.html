@@ -56,9 +56,9 @@
 
 <!-- Motor de PDF (vendorizado para funcionar sin conexión y sin CDN) -->
 <script src="vendor/jspdf.umd.min.js"></script>
-<!-- SheetJS para leer y escribir archivos Excel (adelantos y quinquenios).
-     Vendorizado (como jsPDF) para funcionar sin conexión y sin CDN. -->
-<script src="vendor/xlsx.full.min.js"></script>
+<!-- PDF.js — visor oficial de Mozilla para documentos PDF -->
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/pdf.worker.min.js"></script>
 
 <!-- Módulos de la aplicación (scripts clásicos, en orden de dependencia) -->
 <script src="js/config.js"></script>
@@ -77,9 +77,10 @@
 <script src="js/gdrive-config.js"></script>
 <script src="js/gdrive.js"></script>
 <script src="js/onedrive.js"></script>
+<script src="js/viewer.js"></script>
 <script src="js/app.js"></script>
-<!-- Módulo Quin/Adel, repartido en varios archivos (se cargan en orden;
-     los scripts clásicos comparten el mismo ámbito global). -->
+
+<!-- Módulo Quin/Adel (RRHH) -->
 <script src="js/qx-datos.js"></script>
 <script src="js/qx-import.js"></script>
 <script src="js/qx-panel.js"></script>

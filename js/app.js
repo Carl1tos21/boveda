@@ -155,6 +155,10 @@ const ACTIONS = {
   qxreload: () => QxActions.qxreload(),
   qxexportxlsx: () => QxActions.qxexportxlsx(),
 
+  /* Viewers */
+  viewdoc: el => openViewer(docs.find(d => d.id === el.dataset.id)),
+  viewer-close: () => closeViewer(),
+
   /* Excel */
   xlsonline: el => MsActions.openExcelOnline(el && el.dataset ? el.dataset.id : null),
   xlsopen: el => XlsActions.openInExcel(el.dataset.id),
@@ -162,8 +166,6 @@ const ACTIONS = {
   msdisconnect: () => MsActions.msDisconnect(),
   mspull: el => MsActions.msPullManual(el.dataset.id)
 };
-
-/* --------------------- Delegación de eventos --------------------------- */
 document.addEventListener('click', e => {
   const el = e.target.closest ? e.target.closest('[data-v],[data-a],[data-c]') : null;
   if (!el) return;

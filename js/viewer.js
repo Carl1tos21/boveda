@@ -37,6 +37,11 @@ async function renderPdf(blob, filename, container) {
   c.innerHTML = '<div class="vhead"><h1>PDF</h1><div class="mu">Cargando documento…</div></div><div id="pdfcanvas"></div>';
 
   try {
+    // Configurar el worker de PDF.js (para que funcione sin conexión)
+    if (typeof pdfjsLib !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+    }
+
     const pdf = await pdfjsLib.getDocument({ data: blob, useSystemFonts: true }).promise;
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 1.8 });

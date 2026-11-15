@@ -157,7 +157,7 @@ const ACTIONS = {
 
   /* Viewers */
   viewdoc: el => openViewer(docs.find(d => d.id === el.dataset.id)),
-  viewer-close: () => closeViewer(),
+  'viewer-close': () => closeViewer(),
 
   /* Excel */
   xlsonline: el => MsActions.openExcelOnline(el && el.dataset ? el.dataset.id : null),
